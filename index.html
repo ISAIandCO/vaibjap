@@ -1,395 +1,423 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Volume2, BookOpen, Brain, Type, ArrowLeft, RefreshCcw, PlayCircle, CheckCircle, FileText, Headphones, Layers } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Nihongo App</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom, 1rem); }
+    body { background-color: #111827; color: #f3f4f6; overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
 
-const courseData = [
-  {
-    id: 1, title: 'День 1: Гласные', desc: 'Азбука (А-О) и структура предложений.',
-    kana: [{ jp: 'あ', romaji: 'a' }, { jp: 'い', romaji: 'i' }, { jp: 'う', romaji: 'u' }, { jp: 'え', romaji: 'e' }, { jp: 'お', romaji: 'o' }],
-    vocab: [{ jp: 'はい', romaji: 'hai', ru: 'Да' }, { jp: 'いいえ', romaji: 'iie', ru: 'Нет' }, { jp: 'あお', romaji: 'ao', ru: 'Синий' }],
-    grammar: [{ title: 'Порядок слов', content: '[Подлежащее] + [Объект] + [Глагол]. Глагол ВСЕГДА в конце.' }],
-    quiz: [{ q: 'Читается "あ"?', options: ['i', 'a', 'e', 'o'], answer: 'a' }, { type: 'build', q: 'Да, синий', options: ['はい', 'あお', 'いいえ'], answer: ['はい', 'あお'] }]
-  },
-  {
-    id: 2, title: 'День 2: Ряд "К"', desc: 'Хирагана (Ка-Ко) и вежливость.',
-    kana: [{ jp: 'か', romaji: 'ka' }, { jp: 'き', romaji: 'ki' }, { jp: 'く', romaji: 'ku' }, { jp: 'け', romaji: 'ke' }, { jp: 'こ', romaji: 'ko' }],
-    vocab: [{ jp: 'あか', romaji: 'aka', ru: 'Красный' }, { jp: 'かお', romaji: 'kao', ru: 'Лицо' }, { jp: 'です', romaji: 'desu', ru: 'Быть (вежливо)' }],
-    grammar: [{ title: 'Связка です (Desu)', content: 'Ставится в конце. "Aka desu" — (Это) красный.' }],
-    quiz: [{ q: 'Читается "き"?', options: ['ka', 'ku', 'ki', 'ke'], answer: 'ki' }, { type: 'build', q: 'Это красное лицо', options: ['あか', 'かお', 'です'], answer: ['あか', 'かお', 'です'] }]
-  },
-  {
-    id: 3, title: 'День 3: Ряд "С"', desc: 'Хирагана (Са-Со) и вопросы.',
-    kana: [{ jp: 'さ', romaji: 'sa' }, { jp: 'し', romaji: 'shi' }, { jp: 'す', romaji: 'su' }, { jp: 'せ', romaji: 'se' }, { jp: 'そ', romaji: 'so' }],
-    vocab: [{ jp: 'すし', romaji: 'sushi', ru: 'Суши' }, { jp: 'うし', romaji: 'ushi', ru: 'Корова' }, { jp: 'か', romaji: 'ka', ru: 'Частица вопроса' }],
-    grammar: [{ title: 'Частица か (Ka)', content: 'Делает предложение вопросом. "Sushi desu ka?"' }],
-    quiz: [{ type: 'audio', audioText: 'うし', q: 'Перевод:', options: ['Суши', 'Зонт', 'Корова', 'Лицо'], answer: 'Корова' }, { type: 'build', q: 'Это суши?', options: ['です', 'すし', 'か'], answer: ['すし', 'です', 'か'] }]
-  },
-  {
-    id: 4, title: 'День 4: Ряд "Т"', desc: 'Хирагана (Та-То) и тема.',
-    kana: [{ jp: 'た', romaji: 'ta' }, { jp: 'ち', romaji: 'chi' }, { jp: 'つ', romaji: 'tsu' }, { jp: 'て', romaji: 'te' }, { jp: 'と', romaji: 'to' }],
-    vocab: [{ jp: 'わたし', romaji: 'watashi', ru: 'Я' }, { jp: 'くつ', romaji: 'kutsu', ru: 'Обувь' }, { jp: 'は', romaji: 'wa', ru: 'Тема (ha)' }],
-    grammar: [{ title: 'Частица は (Wa)', content: 'Обозначает тему. "Watashi wa..." — Я...' }],
-    quiz: [{ q: 'Читается "ち"?', options: ['ti', 'chi', 'tsu', 'ta'], answer: 'chi' }, { type: 'build', q: 'Я - корова', options: ['わたし', 'は', 'うし', 'です'], answer: ['わたし', 'は', 'うし', 'です'] }]
-  },
-  {
-    id: 5, title: 'День 5: Ряд "Н"', desc: 'Хирагана (На-Но).',
-    kana: [{ jp: 'な', romaji: 'na' }, { jp: 'に', romaji: 'ni' }, { jp: 'ぬ', romaji: 'nu' }, { jp: 'ね', romaji: 'ne' }, { jp: 'の', romaji: 'no' }],
-    vocab: [{ jp: 'いぬ', romaji: 'inu', ru: 'Собака' }, { jp: 'ねこ', romaji: 'neko', ru: 'Кошка' }, { jp: 'なに', romaji: 'nani', ru: 'Что?' }],
-    grammar: [{ title: 'Вопрос "Что?"', content: 'Nani desu ka? — Что это?' }],
-    quiz: [{ type: 'audio', audioText: 'ねこ', q: 'Перевод:', options: ['Собака', 'Кошка', 'Что', 'Обувь'], answer: 'Кошка' }, { type: 'build', q: 'Что это?', options: ['なに', 'です', 'か'], answer: ['なに', 'です', 'か'] }]
-  },
-  {
-    id: 6, title: 'День 6: Ряд "Х"', desc: 'Хирагана (Ха-Хо).',
-    kana: [{ jp: 'は', romaji: 'ha' }, { jp: 'ひ', romaji: 'hi' }, { jp: 'ふ', romaji: 'fu' }, { jp: 'へ', romaji: 'he' }, { jp: 'ほ', romaji: 'ho' }],
-    vocab: [{ jp: 'ひと', romaji: 'hito', ru: 'Человек' }, { jp: 'ふね', romaji: 'fune', ru: 'Корабль' }, { jp: 'ほし', romaji: 'hoshi', ru: 'Звезда' }],
-    grammar: [{ title: 'Исключения', content: 'ふ читается как "fu" (фу), а не "hu".' }],
-    quiz: [{ q: 'Читается "ふ"?', options: ['hu', 'fu', 'hi', 'ho'], answer: 'fu' }, { type: 'build', q: 'Это корабль', options: ['ふね', 'です', 'か'], answer: ['ふね', 'です'] }]
-  },
-  {
-    id: 7, title: 'День 7: Ряд "М"', desc: 'Хирагана (Ма-Мо).',
-    kana: [{ jp: 'ま', romaji: 'ma' }, { jp: 'み', romaji: 'mi' }, { jp: 'む', romaji: 'mu' }, { jp: 'め', romaji: 'me' }, { jp: 'も', romaji: 'mo' }],
-    vocab: [{ jp: 'みず', romaji: 'mizu', ru: 'Вода' }, { jp: 'め', romaji: 'me', ru: 'Глаз' }, { jp: 'みみ', romaji: 'mimi', ru: 'Ухо' }],
-    grammar: [{ title: 'Тоже (Мо)', content: 'Частица も (mo) означает "тоже". Watashi mo — Я тоже.' }],
-    quiz: [{ type: 'audio', audioText: 'みず', q: 'Перевод:', options: ['Вода', 'Глаз', 'Ухо', 'Человек'], answer: 'Вода' }, { type: 'build', q: 'Я тоже', options: ['わたし', 'も', 'は'], answer: ['わたし', 'も'] }]
-  },
-  {
-    id: 8, title: 'День 8: Ряды Я, Р, В, Н', desc: 'Завершение базовой Хираганы.',
-    kana: [{ jp: 'や', romaji: 'ya' }, { jp: 'ゆ', romaji: 'yu' }, { jp: 'よ', romaji: 'yo' }, { jp: 'ら', romaji: 'ra' }, { jp: 'り', romaji: 'ri' }, { jp: 'る', romaji: 'ru' }, { jp: 'れ', romaji: 're' }, { jp: 'ろ', romaji: 'ro' }, { jp: 'わ', romaji: 'wa' }, { jp: 'を', romaji: 'wo' }, { jp: 'ん', romaji: 'n' }],
-    vocab: [{ jp: 'やま', romaji: 'yama', ru: 'Гора' }, { jp: 'くるま', romaji: 'kuruma', ru: 'Машина' }, { jp: 'ほん', romaji: 'hon', ru: 'Книга' }],
-    grammar: [{ title: 'Одиночная согласная', content: 'ん (n) — единственная согласная, которая может стоять отдельно.' }],
-    quiz: [{ q: 'Читается "ん"?', options: ['m', 'n', 'wa', 'wo'], answer: 'n' }, { type: 'build', q: 'Это книга', options: ['ほん', 'です', 'くるま'], answer: ['ほん', 'です'] }]
-  },
-  {
-    id: 9, title: 'День 9: Озвончение', desc: 'Га, За, Да, Ба, Па (Дакутэн).',
-    kana: [{ jp: 'が', romaji: 'ga' }, { jp: 'ざ', romaji: 'za' }, { jp: 'だ', romaji: 'da' }, { jp: 'ば', romaji: 'ba' }, { jp: 'ぱ', romaji: 'pa' }],
-    vocab: [{ jp: 'ぎんこう', romaji: 'ginkou', ru: 'Банк' }, { jp: 'かぜ', romaji: 'kaze', ru: 'Ветер' }, { jp: 'でんわ', romaji: 'denwa', ru: 'Телефон' }],
-    grammar: [{ title: 'Озвончение', content: 'Добавление " (тен-тен) озвончает согласные: k->g, s->z, t->d, h->b. Добавление кружочка делает h->p.' }],
-    quiz: [{ q: 'Как прочитать "が"?', options: ['ka', 'ga', 'za', 'da'], answer: 'ga' }, { type: 'audio', audioText: 'でんわ', q: 'Перевод:', options: ['Ветер', 'Телефон', 'Банк', 'Книга'], answer: 'Телефон' }]
-  },
-  {
-    id: 10, title: 'День 10: Приветствия', desc: 'Базовые фразы общения.',
-    kana: [],
-    vocab: [{ jp: 'こんにちは', romaji: 'konnichiwa', ru: 'Добрый день' }, { jp: 'ありがとう', romaji: 'arigatou', ru: 'Спасибо' }, { jp: 'すみません', romaji: 'sumimasen', ru: 'Извините' }, { jp: 'おはよう', romaji: 'ohayou', ru: 'Доброе утро' }],
-    grammar: [{ title: 'Написание Konnichiwa', content: 'Записывается как こんにちは, где последний символ は (ha), но читается как wa.' }],
-    quiz: [{ type: 'audio', audioText: 'ありがとう', q: 'Перевод:', options: ['Спасибо', 'Извините', 'Доброе утро', 'Добрый день'], answer: 'Спасибо' }, { type: 'build', q: 'Извините, спасибо', options: ['すみません', 'ありがとう', 'おはよう'], answer: ['すみません', 'ありがとう'] }]
-  },
-  {
-    id: 11, title: 'День 11: Катакана (А-К)', desc: 'Азбука для иностранных слов.',
-    kana: [{ jp: 'ア', romaji: 'a' }, { jp: 'イ', romaji: 'i' }, { jp: 'ウ', romaji: 'u' }, { jp: 'エ', romaji: 'e' }, { jp: 'オ', romaji: 'o' }, { jp: 'カ', romaji: 'ka' }, { jp: 'キ', romaji: 'ki' }],
-    vocab: [{ jp: 'ケーキ', romaji: 'keeki', ru: 'Торт (Cake)' }, { jp: 'ドア', romaji: 'doa', ru: 'Дверь (Door)' }],
-    grammar: [{ title: 'Катакана', content: 'Используется для заимствованных слов. Черта ー удлиняет гласную.' }],
-    quiz: [{ q: 'Символ "А" в Катакане?', options: ['あ', 'ア', 'カ', 'エ'], answer: 'ア' }, { type: 'build', q: 'Это торт?', options: ['ケーキ', 'です', 'か'], answer: ['ケーキ', 'です', 'か'] }]
-  },
-  {
-    id: 12, title: 'День 12: Катакана (С-Т)', desc: 'Са-Со, Та-То.',
-    kana: [{ jp: 'サ', romaji: 'sa' }, { jp: 'シ', romaji: 'shi' }, { jp: 'ス', romaji: 'su' }, { jp: 'セ', romaji: 'se' }, { jp: 'ソ', romaji: 'so' }, { jp: 'タ', romaji: 'ta' }, { jp: 'チ', romaji: 'chi' }],
-    vocab: [{ jp: 'テスト', romaji: 'tesuto', ru: 'Тест' }, { jp: 'タクシー', romaji: 'takushii', ru: 'Такси' }],
-    grammar: [{ title: 'Символ シ и ツ', content: 'Си (シ) и Цу (ツ) очень похожи. Си пишется снизу вверх, Цу - сверху вниз.' }],
-    quiz: [{ type: 'audio', audioText: 'テスト', q: 'Перевод:', options: ['Такси', 'Тест', 'Торт', 'Дверь'], answer: 'Тест' }, { type: 'build', q: 'Такси и тест', options: ['タクシー', 'と', 'テスト', 'です'], answer: ['タクシー', 'と', 'テスト'] }]
-  },
-  {
-    id: 13, title: 'День 13: Катакана (Н-Х)', desc: 'На-Но, Ха-Хо.',
-    kana: [{ jp: 'ナ', romaji: 'na' }, { jp: 'ニ', romaji: 'ni' }, { jp: 'ヌ', romaji: 'nu' }, { jp: 'ネ', romaji: 'ne' }, { jp: 'ノ', romaji: 'no' }, { jp: 'ハ', romaji: 'ha' }, { jp: 'ヒ', romaji: 'hi' }],
-    vocab: [{ jp: 'ノート', romaji: 'nooto', ru: 'Тетрадь (Note)' }, { jp: 'ホテル', romaji: 'hoteru', ru: 'Отель' }],
-    grammar: [{ title: 'Катакана', content: 'Обратите внимание на ノ (но). Это всего одна черта.' }],
-    quiz: [{ q: 'Читается "ハ"?', options: ['ha', 'ni', 'na', 'hi'], answer: 'ha' }, { type: 'build', q: 'Это отель', options: ['ホテル', 'です', 'ノート'], answer: ['ホテル', 'です'] }]
-  },
-  {
-    id: 14, title: 'День 14: Катакана финал', desc: 'М, Я, Р, В, Н.',
-    kana: [{ jp: 'マ', romaji: 'ma' }, { jp: 'ミ', romaji: 'mi' }, { jp: 'ヤ', romaji: 'ya' }, { jp: 'ラ', romaji: 'ra' }, { jp: 'ワ', romaji: 'wa' }, { jp: 'ン', romaji: 'n' }],
-    vocab: [{ jp: 'カメラ', romaji: 'kamera', ru: 'Камера' }, { jp: 'パン', romaji: 'pan', ru: 'Хлеб' }, { jp: 'ワイン', romaji: 'wain', ru: 'Вино' }],
-    grammar: [{ title: 'Символ ン', content: 'Н (ン) похож на Со (ソ), но пишется снизу вверх.' }],
-    quiz: [{ type: 'audio', audioText: 'パン', q: 'Перевод:', options: ['Хлеб', 'Камера', 'Вино', 'Отель'], answer: 'Хлеб' }, { type: 'build', q: 'Хлеб и вино', options: ['パン', 'と', 'ワイン', 'です'], answer: ['パン', 'と', 'ワイン'] }]
-  },
-  {
-    id: 15, title: 'День 15: Указательные', desc: 'Коре, Соре, Аре.',
-    kana: [],
-    vocab: [{ jp: 'これ', romaji: 'kore', ru: 'Это (возле меня)' }, { jp: 'それ', romaji: 'sore', ru: 'То (возле тебя)' }, { jp: 'あれ', romaji: 'are', ru: 'Во-о-н то (далеко)' }, { jp: 'どれ', romaji: 'dore', ru: 'Которое?' }],
-    grammar: [{ title: 'Ko-So-A-Do', content: 'Ко - рядом с говорящим. Со - рядом со слушающим. А - далеко от обоих. До - вопрос.' }],
-    quiz: [{ q: 'Как сказать "Во-о-н то"?', options: ['これ', 'それ', 'あれ', 'どれ'], answer: 'あれ' }, { type: 'build', q: 'Это хлеб', options: ['これ', 'は', 'パン', 'です'], answer: ['これ', 'は', 'パン', 'です'] }]
-  },
-  {
-    id: 16, title: 'День 16: Частица も (Mo)', desc: 'Тоже, также.',
-    kana: [],
-    vocab: [{ jp: 'りんご', romaji: 'ringo', ru: 'Яблоко' }, { jp: 'みかん', romaji: 'mikan', ru: 'Мандарин' }, { jp: 'も', romaji: 'mo', ru: 'Тоже (частица)' }],
-    grammar: [{ title: 'Использование も', content: 'も заменяет は. "Watashi mo" = Я тоже.' }],
-    quiz: [{ type: 'audio', audioText: 'りんご', q: 'Перевод:', options: ['Яблоко', 'Мандарин', 'Тоже', 'Хлеб'], answer: 'Яблоко' }, { type: 'build', q: 'Это тоже яблоко', options: ['これ', 'も', 'りんご', 'です'], answer: ['これ', 'も', 'りんご', 'です'] }]
-  },
-  {
-    id: 17, title: 'День 17: Существование', desc: 'Имасу и Аримасу.',
-    kana: [],
-    vocab: [{ jp: 'います', romaji: 'imasu', ru: 'Есть (о живом)' }, { jp: 'あります', romaji: 'arimasu', ru: 'Есть (о неживом)' }, { jp: 'が', romaji: 'ga', ru: 'Частица (субъект)' }],
-    grammar: [{ title: 'Живое и Неживое', content: 'Для людей и животных - imasu. Для предметов и растений - arimasu. Перед ними ставится が.' }],
-    quiz: [{ q: 'Какое слово для "Есть собака"?', options: ['います', 'あります', 'です', 'か'], answer: 'います' }, { type: 'build', q: 'Есть яблоко (неживое)', options: ['りんご', 'が', 'あります', 'います'], answer: ['りんご', 'が', 'あります'] }]
-  },
-  {
-    id: 18, title: 'День 18: Места и частица に', desc: 'Где что находится.',
-    kana: [],
-    vocab: [{ jp: 'ここ', romaji: 'koko', ru: 'Здесь' }, { jp: 'そこ', romaji: 'soko', ru: 'Там' }, { jp: 'あそこ', romaji: 'asoko', ru: 'Вон там' }, { jp: 'に', romaji: 'ni', ru: 'В / На (частица)' }],
-    grammar: [{ title: 'Местоположение', content: '[Место] に [Предмет] が あります. Пример: Koko ni ringo ga arimasu.' }],
-    quiz: [{ type: 'audio', audioText: 'あそこ', q: 'Перевод:', options: ['Здесь', 'Там', 'Вон там', 'Где'], answer: 'Вон там' }, { type: 'build', q: 'Здесь есть собака', options: ['ここ', 'に', 'いぬ', 'が', 'います'], answer: ['ここ', 'に', 'いぬ', 'が', 'います'] }]
-  },
-  {
-    id: 19, title: 'День 19: Глаголы движения', desc: 'Идти, приходить, возвращаться.',
-    kana: [],
-    vocab: [{ jp: 'いく', romaji: 'iku', ru: 'Идти' }, { jp: 'くる', romaji: 'kuru', ru: 'Приходить' }, { jp: 'かえる', romaji: 'kaeru', ru: 'Возвращаться' }, { jp: 'がっこう', romaji: 'gakkou', ru: 'Школа' }, { jp: 'へ', romaji: 'e', ru: 'В (направление, пишется he)' }],
-    grammar: [{ title: 'Частица へ (e)', content: 'Обозначает направление движения. Пишется как へ (he), но читается "e".' }],
-    quiz: [{ q: 'Как читается частица направления へ?', options: ['he', 'e', 'ha', 'wa'], answer: 'e' }, { type: 'build', q: 'Идти в школу', options: ['がっこう', 'へ', 'いく', 'くる'], answer: ['がっこう', 'へ', 'いく'] }]
-  },
-  {
-    id: 20, title: 'День 20: Частица を (O)', desc: 'Объект действия.',
-    kana: [],
-    vocab: [{ jp: 'たべる', romaji: 'taberu', ru: 'Есть (кушать)' }, { jp: 'のむ', romaji: 'nomu', ru: 'Пить' }, { jp: 'を', romaji: 'o', ru: 'Частица объекта' }],
-    grammar: [{ title: 'Частица を', content: 'Ставится после объекта, над которым совершается действие (винительный падеж).' }],
-    quiz: [{ type: 'audio', audioText: 'のむ', q: 'Перевод:', options: ['Пить', 'Есть', 'Идти', 'Яблоко'], answer: 'Пить' }, { type: 'build', q: 'Пить воду', options: ['みず', 'を', 'のむ', 'たべる'], answer: ['みず', 'を', 'のむ'] }]
-  },
-  {
-    id: 21, title: 'День 21: Числа 1-10', desc: 'Счет.',
-    kana: [],
-    vocab: [{ jp: 'いち', romaji: 'ichi', ru: 'Один' }, { jp: 'に', romaji: 'ni', ru: 'Два' }, { jp: 'さん', romaji: 'san', ru: 'Три' }, { jp: 'よん', romaji: 'yon', ru: 'Четыре' }, { jp: 'ご', romaji: 'go', ru: 'Пять' }],
-    grammar: [{ title: 'Счет', content: 'Японские цифры часто комбинируются. 11 это "десять один" (juu ichi).' }],
-    quiz: [{ q: 'Цифра "4"?', options: ['に', 'さん', 'よん', 'ご'], answer: 'よん' }, { type: 'build', q: 'Пять яблок (просто слова)', options: ['ご', 'りんご', 'です'], answer: ['ご', 'りんご'] }]
-  },
-  {
-    id: 22, title: 'День 22: Числа 6-10', desc: 'Счет продолжение.',
-    kana: [],
-    vocab: [{ jp: 'ろく', romaji: 'roku', ru: 'Шесть' }, { jp: 'なな', romaji: 'nana', ru: 'Семь' }, { jp: 'はち', romaji: 'hachi', ru: 'Восемь' }, { jp: 'きゅう', romaji: 'kyuu', ru: 'Девять' }, { jp: 'じゅう', romaji: 'juu', ru: 'Десять' }],
-    grammar: [{ title: 'Секрет 7 и 9', content: 'У 7 есть два чтения: nana и shichi. У 9: kyuu и ku.' }],
-    quiz: [{ type: 'audio', audioText: 'はち', q: 'Перевод:', options: ['Шесть', 'Восемь', 'Десять', 'Семь'], answer: 'Восемь' }, { type: 'build', q: 'Десять кошек', options: ['じゅう', 'ねこ', 'です'], answer: ['じゅう', 'ねこ'] }]
-  },
-  {
-    id: 23, title: 'День 23: Дни недели', desc: 'Понедельник - Пятница.',
-    kana: [],
-    vocab: [{ jp: 'げつようび', romaji: 'getsuyoubi', ru: 'Понедельник' }, { jp: 'かようび', romaji: 'kayoubi', ru: 'Вторник' }, { jp: 'すいようび', romaji: 'suiyoubi', ru: 'Среда' }],
-    grammar: [{ title: 'Суффикс youbi', content: 'Все дни недели заканчиваются на ようび (youbi - день недели).' }],
-    quiz: [{ q: 'Вторник?', options: ['げつようび', 'かようび', 'すいようび'], answer: 'かようび' }, { type: 'build', q: 'В понедельник (ни)', options: ['げつようび', 'に', 'いく'], answer: ['げつようび', 'に'] }]
-  },
-  {
-    id: 24, title: 'День 24: Выходные', desc: 'Четверг - Воскресенье.',
-    kana: [],
-    vocab: [{ jp: 'もくようび', romaji: 'mokuyoubi', ru: 'Четверг' }, { jp: 'きんようび', romaji: 'kinyoubi', ru: 'Пятница' }, { jp: 'どようび', romaji: 'doyoubi', ru: 'Суббота' }, { jp: 'にちようび', romaji: 'nichiyoubi', ru: 'Воскресенье' }],
-    grammar: [{ title: 'Элементы', content: 'Дни названы в честь элементов: 木 (дерево) - четверг, 金 (золото) - пятница.' }],
-    quiz: [{ type: 'audio', audioText: 'にちようび', q: 'Перевод:', options: ['Пятница', 'Суббота', 'Воскресенье', 'Четверг'], answer: 'Воскресенье' }, { type: 'build', q: 'В воскресенье я иду', options: ['にちようび', 'に', 'いく', 'わたし', 'は'], answer: ['わたし', 'は', 'にちようび', 'に', 'いく'] }]
-  },
-  {
-    id: 25, title: 'День 25: Семья', desc: 'Моя семья.',
-    kana: [],
-    vocab: [{ jp: 'ちち', romaji: 'chichi', ru: 'Отец' }, { jp: 'はは', romaji: 'haha', ru: 'Мать' }, { jp: 'あに', romaji: 'ani', ru: 'Старший брат' }, { jp: 'あね', romaji: 'ane', ru: 'Старшая сестра' }],
-    grammar: [{ title: 'Свои и чужие', content: 'В японском разные слова для СВОЕЙ семьи и ЧУЖОЙ. Chichi - мой отец.' }],
-    quiz: [{ q: 'Старший брат?', options: ['ちち', 'はは', 'あに', 'あね'], answer: 'あに' }, { type: 'build', q: 'Мать и отец', options: ['はは', 'と', 'ちち', 'です'], answer: ['はは', 'と', 'ちち'] }]
-  },
-  {
-    id: 26, title: 'День 26: Прилагательные (i-)', desc: 'Окончание на -i.',
-    kana: [],
-import React, { useState, useEffect, useRef } from 'react';
-import { Volume2, BookOpen, Brain, Type, ArrowLeft, RefreshCcw, PlayCircle, CheckCircle, FileText, Headphones, Layers } from 'lucide-react';
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
 
-const courseData = [
-  {
-    id: 1, title: 'День 1: Гласные', desc: 'Азбука (А-О) и структура предложений.',
-    kana: [{ jp: 'あ', romaji: 'a' }, { jp: 'い', romaji: 'i' }, { jp: 'う', romaji: 'u' }, { jp: 'え', romaji: 'e' }, { jp: 'お', romaji: 'o' }],
-    vocab: [{ jp: 'はい', romaji: 'hai', ru: 'Да' }, { jp: 'いいえ', romaji: 'iie', ru: 'Нет' }, { jp: 'あお', romaji: 'ao', ru: 'Синий' }],
-    grammar: [{ title: 'Порядок слов', content: '[Подлежащее] + [Объект] + [Глагол]. Глагол ВСЕГДА в конце.' }],
-    quiz: [{ q: 'Читается "あ"?', options: ['i', 'a', 'e', 'o'], answer: 'a' }, { type: 'build', q: 'Да, синий', options: ['はい', 'あお', 'いいえ'], answer: ['はい', 'あお'] }]
-  },
-  {
-    id: 2, title: 'День 2: Ряд "К"', desc: 'Хирагана (Ка-Ко) и вежливость.',
-    kana: [{ jp: 'か', romaji: 'ka' }, { jp: 'き', romaji: 'ki' }, { jp: 'く', romaji: 'ku' }, { jp: 'け', romaji: 'ke' }, { jp: 'こ', romaji: 'ko' }],
-    vocab: [{ jp: 'あか', romaji: 'aka', ru: 'Красный' }, { jp: 'かお', romaji: 'kao', ru: 'Лицо' }, { jp: 'です', romaji: 'desu', ru: 'Быть (вежливо)' }],
-    grammar: [{ title: 'Связка です (Desu)', content: 'Ставится в конце. "Aka desu" — (Это) красный.' }],
-    quiz: [{ q: 'Читается "き"?', options: ['ka', 'ku', 'ki', 'ke'], answer: 'ki' }, { type: 'build', q: 'Это красное лицо', options: ['あか', 'かお', 'です'], answer: ['あか', 'かお', 'です'] }]
-  },
-  {
-    id: 3, title: 'День 3: Ряд "С"', desc: 'Хирагана (Са-Со) и вопросы.',
-    kana: [{ jp: 'さ', romaji: 'sa' }, { jp: 'し', romaji: 'shi' }, { jp: 'す', romaji: 'su' }, { jp: 'せ', romaji: 'se' }, { jp: 'そ', romaji: 'so' }],
-    vocab: [{ jp: 'すし', romaji: 'sushi', ru: 'Суши' }, { jp: 'うし', romaji: 'ushi', ru: 'Корова' }, { jp: 'か', romaji: 'ka', ru: 'Частица вопроса' }],
-    grammar: [{ title: 'Частица か (Ka)', content: 'Делает предложение вопросом. "Sushi desu ka?"' }],
-    quiz: [{ type: 'audio', audioText: 'うし', q: 'Перевод:', options: ['Суши', 'Зонт', 'Корова', 'Лицо'], answer: 'Корова' }, { type: 'build', q: 'Это суши?', options: ['です', 'すし', 'か'], answer: ['すし', 'です', 'か'] }]
-  },
-  {
-    id: 4, title: 'День 4: Ряд "Т"', desc: 'Хирагана (Та-То) и тема.',
-    kana: [{ jp: 'た', romaji: 'ta' }, { jp: 'ち', romaji: 'chi' }, { jp: 'つ', romaji: 'tsu' }, { jp: 'て', romaji: 'te' }, { jp: 'と', romaji: 'to' }],
-    vocab: [{ jp: 'わたし', romaji: 'watashi', ru: 'Я' }, { jp: 'くつ', romaji: 'kutsu', ru: 'Обувь' }, { jp: 'は', romaji: 'wa', ru: 'Тема (ha)' }],
-    grammar: [{ title: 'Частица は (Wa)', content: 'Обозначает тему. "Watashi wa..." — Я...' }],
-    quiz: [{ q: 'Читается "ち"?', options: ['ti', 'chi', 'tsu', 'ta'], answer: 'chi' }, { type: 'build', q: 'Я - корова', options: ['わたし', 'は', 'うし', 'です'], answer: ['わたし', 'は', 'うし', 'です'] }]
-  },
-  {
-    id: 5, title: 'День 5: Ряд "Н"', desc: 'Хирагана (На-Но).',
-    kana: [{ jp: 'な', romaji: 'na' }, { jp: 'に', romaji: 'ni' }, { jp: 'ぬ', romaji: 'nu' }, { jp: 'ね', romaji: 'ne' }, { jp: 'の', romaji: 'no' }],
-    vocab: [{ jp: 'いぬ', romaji: 'inu', ru: 'Собака' }, { jp: 'ねこ', romaji: 'neko', ru: 'Кошка' }, { jp: 'なに', romaji: 'nani', ru: 'Что?' }],
-    grammar: [{ title: 'Вопрос "Что?"', content: 'Nani desu ka? — Что это?' }],
-    quiz: [{ type: 'audio', audioText: 'ねこ', q: 'Перевод:', options: ['Собака', 'Кошка', 'Что', 'Обувь'], answer: 'Кошка' }, { type: 'build', q: 'Что это?', options: ['なに', 'です', 'か'], answer: ['なに', 'です', 'か'] }]
-  },
-  {
-    id: 6, title: 'День 6: Ряд "Х"', desc: 'Хирагана (Ха-Хо).',
-    kana: [{ jp: 'は', romaji: 'ha' }, { jp: 'ひ', romaji: 'hi' }, { jp: 'ふ', romaji: 'fu' }, { jp: 'へ', romaji: 'he' }, { jp: 'ほ', romaji: 'ho' }],
-    vocab: [{ jp: 'ひと', romaji: 'hito', ru: 'Человек' }, { jp: 'ふね', romaji: 'fune', ru: 'Корабль' }, { jp: 'ほし', romaji: 'hoshi', ru: 'Звезда' }],
-    grammar: [{ title: 'Исключения', content: 'ふ читается как "fu" (фу), а не "hu".' }],
-    quiz: [{ q: 'Читается "ふ"?', options: ['hu', 'fu', 'hi', 'ho'], answer: 'fu' }, { type: 'build', q: 'Это корабль', options: ['ふね', 'です', 'か'], answer: ['ふね', 'です'] }]
-  },
-  {
-    id: 7, title: 'День 7: Ряд "М"', desc: 'Хирагана (Ма-Мо).',
-    kana: [{ jp: 'ま', romaji: 'ma' }, { jp: 'み', romaji: 'mi' }, { jp: 'む', romaji: 'mu' }, { jp: 'め', romaji: 'me' }, { jp: 'も', romaji: 'mo' }],
-    vocab: [{ jp: 'みず', romaji: 'mizu', ru: 'Вода' }, { jp: 'め', romaji: 'me', ru: 'Глаз' }, { jp: 'みみ', romaji: 'mimi', ru: 'Ухо' }],
-    grammar: [{ title: 'Тоже (Мо)', content: 'Частица も (mo) означает "тоже". Watashi mo — Я тоже.' }],
-    quiz: [{ type: 'audio', audioText: 'みず', q: 'Перевод:', options: ['Вода', 'Глаз', 'Ухо', 'Человек'], answer: 'Вода' }, { type: 'build', q: 'Я тоже', options: ['わたし', 'も', 'は'], answer: ['わたし', 'も'] }]
-  },
-  {
-    id: 8, title: 'День 8: Ряды Я, Р, В, Н', desc: 'Завершение базовой Хираганы.',
-    kana: [{ jp: 'や', romaji: 'ya' }, { jp: 'ゆ', romaji: 'yu' }, { jp: 'よ', romaji: 'yo' }, { jp: 'ら', romaji: 'ra' }, { jp: 'り', romaji: 'ri' }, { jp: 'る', romaji: 'ru' }, { jp: 'れ', romaji: 're' }, { jp: 'ろ', romaji: 'ro' }, { jp: 'わ', romaji: 'wa' }, { jp: 'を', romaji: 'wo' }, { jp: 'ん', romaji: 'n' }],
-    vocab: [{ jp: 'やま', romaji: 'yama', ru: 'Гора' }, { jp: 'くるま', romaji: 'kuruma', ru: 'Машина' }, { jp: 'ほん', romaji: 'hon', ru: 'Книга' }],
-    grammar: [{ title: 'Одиночная согласная', content: 'ん (n) — единственная согласная, которая может стоять отдельно.' }],
-    quiz: [{ q: 'Читается "ん"?', options: ['m', 'n', 'wa', 'wo'], answer: 'n' }, { type: 'build', q: 'Это книга', options: ['ほん', 'です', 'くるま'], answer: ['ほん', 'です'] }]
-  },
-  {
-    id: 9, title: 'День 9: Озвончение', desc: 'Га, За, Да, Ба, Па (Дакутэн).',
-    kana: [{ jp: 'が', romaji: 'ga' }, { jp: 'ざ', romaji: 'za' }, { jp: 'だ', romaji: 'da' }, { jp: 'ば', romaji: 'ba' }, { jp: 'ぱ', romaji: 'pa' }],
-    vocab: [{ jp: 'ぎんこう', romaji: 'ginkou', ru: 'Банк' }, { jp: 'かぜ', romaji: 'kaze', ru: 'Ветер' }, { jp: 'でんわ', romaji: 'denwa', ru: 'Телефон' }],
-    grammar: [{ title: 'Озвончение', content: 'Добавление " (тен-тен) озвончает согласные: k->g, s->z, t->d, h->b. Добавление кружочка делает h->p.' }],
-    quiz: [{ q: 'Как прочитать "が"?', options: ['ka', 'ga', 'za', 'da'], answer: 'ga' }, { type: 'audio', audioText: 'でんわ', q: 'Перевод:', options: ['Ветер', 'Телефон', 'Банк', 'Книга'], answer: 'Телефон' }]
-  },
-  {
-    id: 10, title: 'День 10: Приветствия', desc: 'Базовые фразы общения.',
-    kana: [],
-    vocab: [{ jp: 'こんにちは', romaji: 'konnichiwa', ru: 'Добрый день' }, { jp: 'ありがとう', romaji: 'arigatou', ru: 'Спасибо' }, { jp: 'すみません', romaji: 'sumimasen', ru: 'Извините' }, { jp: 'おはよう', romaji: 'ohayou', ru: 'Доброе утро' }],
-    grammar: [{ title: 'Написание Konnichiwa', content: 'Записывается как こんにちは, где последний символ は (ha), но читается как wa.' }],
-    quiz: [{ type: 'audio', audioText: 'ありがとう', q: 'Перевод:', options: ['Спасибо', 'Извините', 'Доброе утро', 'Добрый день'], answer: 'Спасибо' }, { type: 'build', q: 'Извините, спасибо', options: ['すみません', 'ありがとう', 'おはよう'], answer: ['すみません', 'ありがとう'] }]
-  },
-  {
-    id: 11, title: 'День 11: Катакана (А-К)', desc: 'Азбука для иностранных слов.',
-    kana: [{ jp: 'ア', romaji: 'a' }, { jp: 'イ', romaji: 'i' }, { jp: 'ウ', romaji: 'u' }, { jp: 'エ', romaji: 'e' }, { jp: 'オ', romaji: 'o' }, { jp: 'カ', romaji: 'ka' }, { jp: 'キ', romaji: 'ki' }],
-    vocab: [{ jp: 'ケーキ', romaji: 'keeki', ru: 'Торт (Cake)' }, { jp: 'ドア', romaji: 'doa', ru: 'Дверь (Door)' }],
-    grammar: [{ title: 'Катакана', content: 'Используется для заимствованных слов. Черта ー удлиняет гласную.' }],
-    quiz: [{ q: 'Символ "А" в Катакане?', options: ['あ', 'ア', 'カ', 'エ'], answer: 'ア' }, { type: 'build', q: 'Это торт?', options: ['ケーキ', 'です', 'か'], answer: ['ケーキ', 'です', 'か'] }]
-  },
-  {
-    id: 12, title: 'День 12: Катакана (С-Т)', desc: 'Са-Со, Та-То.',
-    kana: [{ jp: 'サ', romaji: 'sa' }, { jp: 'シ', romaji: 'shi' }, { jp: 'ス', romaji: 'su' }, { jp: 'セ', romaji: 'se' }, { jp: 'ソ', romaji: 'so' }, { jp: 'タ', romaji: 'ta' }, { jp: 'チ', romaji: 'chi' }],
-    vocab: [{ jp: 'テスト', romaji: 'tesuto', ru: 'Тест' }, { jp: 'タクシー', romaji: 'takushii', ru: 'Такси' }],
-    grammar: [{ title: 'Символ シ и ツ', content: 'Си (シ) и Цу (ツ) очень похожи. Си пишется снизу вверх, Цу - сверху вниз.' }],
-    quiz: [{ type: 'audio', audioText: 'テスト', q: 'Перевод:', options: ['Такси', 'Тест', 'Торт', 'Дверь'], answer: 'Тест' }, { type: 'build', q: 'Такси и тест', options: ['タクシー', 'と', 'テスト', 'です'], answer: ['タクシー', 'と', 'テスト'] }]
-  },
-  {
-    id: 13, title: 'День 13: Катакана (Н-Х)', desc: 'На-Но, Ха-Хо.',
-    kana: [{ jp: 'ナ', romaji: 'na' }, { jp: 'ニ', romaji: 'ni' }, { jp: 'ヌ', romaji: 'nu' }, { jp: 'ネ', romaji: 'ne' }, { jp: 'ノ', romaji: 'no' }, { jp: 'ハ', romaji: 'ha' }, { jp: 'ヒ', romaji: 'hi' }],
-    vocab: [{ jp: 'ノート', romaji: 'nooto', ru: 'Тетрадь (Note)' }, { jp: 'ホテル', romaji: 'hoteru', ru: 'Отель' }],
-    grammar: [{ title: 'Катакана', content: 'Обратите внимание на ノ (но). Это всего одна черта.' }],
-    quiz: [{ q: 'Читается "ハ"?', options: ['ha', 'ni', 'na', 'hi'], answer: 'ha' }, { type: 'build', q: 'Это отель', options: ['ホテル', 'です', 'ノート'], answer: ['ホテル', 'です'] }]
-  },
-  {
-    id: 14, title: 'День 14: Катакана финал', desc: 'М, Я, Р, В, Н.',
-    kana: [{ jp: 'マ', romaji: 'ma' }, { jp: 'ミ', romaji: 'mi' }, { jp: 'ヤ', romaji: 'ya' }, { jp: 'ラ', romaji: 'ra' }, { jp: 'ワ', romaji: 'wa' }, { jp: 'ン', romaji: 'n' }],
-    vocab: [{ jp: 'カメラ', romaji: 'kamera', ru: 'Камера' }, { jp: 'パン', romaji: 'pan', ru: 'Хлеб' }, { jp: 'ワイン', romaji: 'wain', ru: 'Вино' }],
-    grammar: [{ title: 'Символ ン', content: 'Н (ン) похож на Со (ソ), но пишется снизу вверх.' }],
-    quiz: [{ type: 'audio', audioText: 'パン', q: 'Перевод:', options: ['Хлеб', 'Камера', 'Вино', 'Отель'], answer: 'Хлеб' }, { type: 'build', q: 'Хлеб и вино', options: ['パン', 'と', 'ワイン', 'です'], answer: ['パン', 'と', 'ワイン'] }]
-  },
-  {
-    id: 15, title: 'День 15: Указательные', desc: 'Коре, Соре, Аре.',
-    kana: [],
-    vocab: [{ jp: 'これ', romaji: 'kore', ru: 'Это (возле меня)' }, { jp: 'それ', romaji: 'sore', ru: 'То (возле тебя)' }, { jp: 'あれ', romaji: 'are', ru: 'Во-о-н то (далеко)' }, { jp: 'どれ', romaji: 'dore', ru: 'Которое?' }],
-    grammar: [{ title: 'Ko-So-A-Do', content: 'Ко - рядом с говорящим. Со - рядом со слушающим. А - далеко от обоих. До - вопрос.' }],
-    quiz: [{ q: 'Как сказать "Во-о-н то"?', options: ['これ', 'それ', 'あれ', 'どれ'], answer: 'あれ' }, { type: 'build', q: 'Это хлеб', options: ['これ', 'は', 'パン', 'です'], answer: ['これ', 'は', 'パン', 'です'] }]
-  },
-  {
-    id: 16, title: 'День 16: Частица も (Mo)', desc: 'Тоже, также.',
-    kana: [],
-    vocab: [{ jp: 'りんご', romaji: 'ringo', ru: 'Яблоко' }, { jp: 'みかん', romaji: 'mikan', ru: 'Мандарин' }, { jp: 'も', romaji: 'mo', ru: 'Тоже (частица)' }],
-    grammar: [{ title: 'Использование も', content: 'も заменяет は. "Watashi mo" = Я тоже.' }],
-    quiz: [{ type: 'audio', audioText: 'りんご', q: 'Перевод:', options: ['Яблоко', 'Мандарин', 'Тоже', 'Хлеб'], answer: 'Яблоко' }, { type: 'build', q: 'Это тоже яблоко', options: ['これ', 'も', 'りんご', 'です'], answer: ['これ', 'も', 'りんご', 'です'] }]
-  },
-  {
-    id: 17, title: 'День 17: Существование', desc: 'Имасу и Аримасу.',
-    kana: [],
-    vocab: [{ jp: 'います', romaji: 'imasu', ru: 'Есть (о живом)' }, { jp: 'あります', romaji: 'arimasu', ru: 'Есть (о неживом)' }, { jp: 'が', romaji: 'ga', ru: 'Частица (субъект)' }],
-    grammar: [{ title: 'Живое и Неживое', content: 'Для людей и животных - imasu. Для предметов и растений - arimasu. Перед ними ставится が.' }],
-    quiz: [{ q: 'Какое слово для "Есть собака"?', options: ['います', 'あります', 'です', 'か'], answer: 'います' }, { type: 'build', q: 'Есть яблоко (неживое)', options: ['りんご', 'が', 'あります', 'います'], answer: ['りんご', 'が', 'あります'] }]
-  },
-  {
-    id: 18, title: 'День 18: Места и частица に', desc: 'Где что находится.',
-    kana: [],
-    vocab: [{ jp: 'ここ', romaji: 'koko', ru: 'Здесь' }, { jp: 'そこ', romaji: 'soko', ru: 'Там' }, { jp: 'あそこ', romaji: 'asoko', ru: 'Вон там' }, { jp: 'に', romaji: 'ni', ru: 'В / На (частица)' }],
-    grammar: [{ title: 'Местоположение', content: '[Место] に [Предмет] が あります. Пример: Koko ni ringo ga arimasu.' }],
-    quiz: [{ type: 'audio', audioText: 'あそこ', q: 'Перевод:', options: ['Здесь', 'Там', 'Вон там', 'Где'], answer: 'Вон там' }, { type: 'build', q: 'Здесь есть собака', options: ['ここ', 'に', 'いぬ', 'が', 'います'], answer: ['ここ', 'に', 'いぬ', 'が', 'います'] }]
-  },
-  {
-    id: 19, title: 'День 19: Глаголы движения', desc: 'Идти, приходить, возвращаться.',
-    kana: [],
-    vocab: [{ jp: 'いく', romaji: 'iku', ru: 'Идти' }, { jp: 'くる', romaji: 'kuru', ru: 'Приходить' }, { jp: 'かえる', romaji: 'kaeru', ru: 'Возвращаться' }, { jp: 'がっこう', romaji: 'gakkou', ru: 'Школа' }, { jp: 'へ', romaji: 'e', ru: 'В (направление, пишется he)' }],
-    grammar: [{ title: 'Частица へ (e)', content: 'Обозначает направление движения. Пишется как へ (he), но читается "e".' }],
-    quiz: [{ q: 'Как читается частица направления へ?', options: ['he', 'e', 'ha', 'wa'], answer: 'e' }, { type: 'build', q: 'Идти в школу', options: ['がっこう', 'へ', 'いく', 'くる'], answer: ['がっこう', 'へ', 'いく'] }]
-  },
-  {
-    id: 20, title: 'День 20: Частица を (O)', desc: 'Объект действия.',
-    kana: [],
-    vocab: [{ jp: 'たべる', romaji: 'taberu', ru: 'Есть (кушать)' }, { jp: 'のむ', romaji: 'nomu', ru: 'Пить' }, { jp: 'を', romaji: 'o', ru: 'Частица объекта' }],
-    grammar: [{ title: 'Частица を', content: 'Ставится после объекта, над которым совершается действие (винительный падеж).' }],
-    quiz: [{ type: 'audio', audioText: 'のむ', q: 'Перевод:', options: ['Пить', 'Есть', 'Идти', 'Яблоко'], answer: 'Пить' }, { type: 'build', q: 'Пить воду', options: ['みず', 'を', 'のむ', 'たべる'], answer: ['みず', 'を', 'のむ'] }]
-  },
-  {
-    id: 21, title: 'День 21: Числа 1-10', desc: 'Счет.',
-    kana: [],
-    vocab: [{ jp: 'いち', romaji: 'ichi', ru: 'Один' }, { jp: 'に', romaji: 'ni', ru: 'Два' }, { jp: 'さん', romaji: 'san', ru: 'Три' }, { jp: 'よん', romaji: 'yon', ru: 'Четыре' }, { jp: 'ご', romaji: 'go', ru: 'Пять' }],
-    grammar: [{ title: 'Счет', content: 'Японские цифры часто комбинируются. 11 это "десять один" (juu ichi).' }],
-    quiz: [{ q: 'Цифра "4"?', options: ['に', 'さん', 'よん', 'ご'], answer: 'よん' }, { type: 'build', q: 'Пять яблок (просто слова)', options: ['ご', 'りんご', 'です'], answer: ['ご', 'りんご'] }]
-  },
-  {
-    id: 22, title: 'День 22: Числа 6-10', desc: 'Счет продолжение.',
-    kana: [],
-    vocab: [{ jp: 'ろく', romaji: 'roku', ru: 'Шесть' }, { jp: 'なな', romaji: 'nana', ru: 'Семь' }, { jp: 'はち', romaji: 'hachi', ru: 'Восемь' }, { jp: 'きゅう', romaji: 'kyuu', ru: 'Девять' }, { jp: 'じゅう', romaji: 'juu', ru: 'Десять' }],
-    grammar: [{ title: 'Секрет 7 и 9', content: 'У 7 есть два чтения: nana и shichi. У 9: kyuu и ku.' }],
-    quiz: [{ type: 'audio', audioText: 'はち', q: 'Перевод:', options: ['Шесть', 'Восемь', 'Десять', 'Семь'], answer: 'Восемь' }, { type: 'build', q: 'Десять кошек', options: ['じゅう', 'ねこ', 'です'], answer: ['じゅう', 'ねこ'] }]
-  },
-  {
-    id: 23, title: 'День 23: Дни недели', desc: 'Понедельник - Пятница.',
-    kana: [],
-    vocab: [{ jp: 'げつようび', romaji: 'getsuyoubi', ru: 'Понедельник' }, { jp: 'かようび', romaji: 'kayoubi', ru: 'Вторник' }, { jp: 'すいようび', romaji: 'suiyoubi', ru: 'Среда' }],
-    grammar: [{ title: 'Суффикс youbi', content: 'Все дни недели заканчиваются на ようび (youbi - день недели).' }],
-    quiz: [{ q: 'Вторник?', options: ['げつようび', 'かようび', 'すいようび'], answer: 'かようび' }, { type: 'build', q: 'В понедельник (ни)', options: ['げつようび', 'に', 'いく'], answer: ['げつようび', 'に'] }]
-  },
-  {
-    id: 24, title: 'День 24: Выходные', desc: 'Четверг - Воскресенье.',
-    kana: [],
-    vocab: [{ jp: 'もくようび', romaji: 'mokuyoubi', ru: 'Четверг' }, { jp: 'きんようび', romaji: 'kinyoubi', ru: 'Пятница' }, { jp: 'どようび', romaji: 'doyoubi', ru: 'Суббота' }, { jp: 'にちようび', romaji: 'nichiyoubi', ru: 'Воскресенье' }],
-    grammar: [{ title: 'Элементы', content: 'Дни названы в честь элементов: 木 (дерево) - четверг, 金 (золото) - пятница.' }],
-    quiz: [{ type: 'audio', audioText: 'にちようび', q: 'Перевод:', options: ['Пятница', 'Суббота', 'Воскресенье', 'Четверг'], answer: 'Воскресенье' }, { type: 'build', q: 'В воскресенье я иду', options: ['にちようび', 'に', 'いく', 'わたし', 'は'], answer: ['わたし', 'は', 'にちようび', 'に', 'いく'] }]
-  },
-  {
-    id: 25, title: 'День 25: Семья', desc: 'Моя семья.',
-    kana: [],
-    vocab: [{ jp: 'ちち', romaji: 'chichi', ru: 'Отец' }, { jp: 'はは', romaji: 'haha', ru: 'Мать' }, { jp: 'あに', romaji: 'ani', ru: 'Старший брат' }, { jp: 'あね', romaji: 'ane', ru: 'Старшая сестра' }],
-    grammar: [{ title: 'Свои и чужие', content: 'В японском разные слова для СВОЕЙ семьи и ЧУЖОЙ. Chichi - мой отец.' }],
-    quiz: [{ q: 'Старший брат?', options: ['ちち', 'はは', 'あに', 'あね'], answer: 'あに' }, { type: 'build', q: 'Мать и отец', options: ['はは', 'と', 'ちち', 'です'], answer: ['はは', 'と', 'ちち'] }]
-  },
-  {
-    id: 26, title: 'День 26: Прилагательные (i-)', desc: 'Окончание на -i.',
-    kana: [],
-    vocab: [{ jp: 'おいしい', romaji: 'oishii', ru: 'Вкусный' }, { jp: 'あつい', romaji: 'atsui', ru: 'Жаркий/Горячий' }, { jp: 'さむい', romaji: 'samui', ru: 'Холодный' }],
-    grammar: [{ title: 'i-прилагательные', content: 'Заканчиваются на い (i) и могут сами выступать сказуемым.' }],
-    quiz: [{ type: 'audio', audioText: 'さむい', q: 'Перевод:', options: ['Вкусный', 'Холодный', 'Жаркий', 'Яблоко'], answer: 'Холодный' }, { type: 'build', q: 'Вкусно', options: ['おいしい', 'です', 'さむい'], answer: ['おいしい', 'です'] }]
-  },
-  {
-    id: 27, title: 'День 27: Кандзи (Цифры)', desc: 'Первые иероглифы.',
-    kana: [{ jp: '一', romaji: 'ichi', ru: 'Один' }, { jp: '二', romaji: 'ni', ru: 'Два' }, { jp: '三', romaji: 'san', ru: 'Три' }],
-    vocab: [{ jp: '一', romaji: 'ichi', ru: 'Один' }, { jp: '二', romaji: 'ni', ru: 'Два' }, { jp: '三', romaji: 'san', ru: 'Три' }],
-    grammar: [{ title: 'Кандзи', content: 'Китайские иероглифы. Обозначают смысл, а не просто звук.' }],
-    quiz: [{ q: 'Иероглиф "Три"?', options: ['一', '二', '三', '四'], answer: '三' }, { type: 'build', q: 'Один и два', options: ['一', 'と', '二', '三'], answer: ['一', 'と', '二'] }]
-  },
-  {
-    id: 28, title: 'День 28: Кандзи (Природа)', desc: 'Солнце и Луна.',
-    kana: [{ jp: '日', romaji: 'hi / nichi', ru: 'Солнце/День' }, { jp: '月', romaji: 'tsuki / getsu', ru: 'Луна/Месяц' }, { jp: '木', romaji: 'ki / moku', ru: 'Дерево' }],
-    vocab: [{ jp: '日', romaji: 'hi', ru: 'Солнце' }, { jp: '月', romaji: 'tsuki', ru: 'Луна' }, { jp: '木', romaji: 'ki', ru: 'Дерево' }],
-    grammar: [{ title: 'Чтения', content: 'У кандзи есть кунное (японское) и онное (китайское) чтения.' }],
-    quiz: [{ type: 'audio', audioText: 'つき', q: 'Луна?', options: ['日', '月', '木', '一'], answer: '月' }, { type: 'build', q: 'Солнце и дерево', options: ['日', 'と', '木', '月'], answer: ['日', 'と', '木'] }]
-  },
-  {
-    id: 29, title: 'День 29: Кандзи (Человек)', desc: 'Люди и части тела.',
-    kana: [{ jp: '人', romaji: 'hito / jin', ru: 'Человек' }, { jp: '口', romaji: 'kuchi', ru: 'Рот' }, { jp: '目', romaji: 'me', ru: 'Глаз' }],
-    vocab: [{ jp: '人', romaji: 'hito', ru: 'Человек' }, { jp: '口', romaji: 'kuchi', ru: 'Рот' }, { jp: '目', romaji: 'me', ru: 'Глаз' }],
-    grammar: [{ title: 'Идеография', content: 'Кандзи 口 похож на открытый рот. 目 похож на глаз с веками.' }],
-    quiz: [{ q: 'Рот?', options: ['人', '目', '口', '日'], answer: '口' }, { type: 'build', q: 'Глаз человека', options: ['人', 'の', '目', '口'], answer: ['人', 'の', '目'] }]
-  },
-  {
-    id: 30, title: 'День 30: Финал курса', desc: 'Закрепление.',
-    kana: [],
-    vocab: [{ jp: 'にほん', romaji: 'nihon', ru: 'Япония' }, { jp: 'ご', romaji: 'go', ru: 'Язык' }, { jp: 'にほんご', romaji: 'nihongo', ru: 'Японский язык' }, { jp: 'べんきょう', romaji: 'benkyou', ru: 'Учеба' }],
-    grammar: [{ title: 'Окончание', content: 'Добавление ~go к стране означает её язык. Nihon + go = Японский язык.' }],
-    quiz: [{ type: 'audio', audioText: 'にほんご', q: 'Перевод:', options: ['Япония', 'Учеба', 'Японский язык', 'Английский'], a
+    const Icon = ({ name, size = 24, className = "" }) => {
+      const paths = {
+        Volume2: '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>',
+        BookOpen: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>',
+        Brain: '<path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/>',
+        Type: '<polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/>',
+        ArrowLeft: '<line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline>',
+        RefreshCcw: '<polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>',
+        PlayCircle: '<circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon>',
+        CheckCircle: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>',
+        FileText: '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line>',
+        Headphones: '<path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"></path>',
+        Layers: '<polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline>'
+      };
+      return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} dangerouslySetInnerHTML={{__html: paths[name]}} />;
+    };
+
+    const courseData = [
+      {
+        id: 1,
+        title: 'День 1: Гласные и Основы',
+        desc: 'Азбука (А-О), базовые слова и структура.',
+        kana: [
+          { jp: 'あ', romaji: 'a' }, { jp: 'い', romaji: 'i' }, { jp: 'う', romaji: 'u' }, { jp: 'え', romaji: 'e' }, { jp: 'お', romaji: 'o' }
+        ],
+        vocab: [
+          { jp: 'はい', romaji: 'hai', ru: 'Да' },
+          { jp: 'いいえ', romaji: 'iie', ru: 'Нет' },
+          { jp: 'あい', romaji: 'ai', ru: 'Любовь' },
+          { jp: 'うえ', romaji: 'ue', ru: 'Верх' },
+          { jp: 'あお', romaji: 'ao', ru: 'Синий' }
+        ],
+        grammar: [
+          { title: 'Порядок слов', content: 'Глагол ВСЕГДА стоит в конце предложения. [Подлежащее] + [Объект] + [Глагол].' }
+        ],
+        quiz: [
+          { q: 'Как читается "あ"?', options: ['i', 'a', 'e', 'o'], answer: 'a' },
+          { type: 'audio', audioText: 'あお', q: 'Перевод:', options: ['Синий', 'Верх', 'Да', 'Любовь'], answer: 'Синий' },
+          { type: 'build', q: 'Собери фразу "Да, любовь"', options: ['はい', 'あお', 'あい', 'いいえ'], answer: ['はい', 'あい'] }
+        ]
+      },
+      {
+        id: 2,
+        title: 'День 2: Ряд "К" и "Desu"',
+        desc: 'Хирагана (Ка-Ко) и вежливое утверждение.',
+        kana: [
+          { jp: 'か', romaji: 'ka' }, { jp: 'き', romaji: 'ki' }, { jp: 'く', romaji: 'ku' }, { jp: 'け', romaji: 'ke' }, { jp: 'こ', romaji: 'ko' }
+        ],
+        vocab: [
+          { jp: 'かお', romaji: 'kao', ru: 'Лицо' },
+          { jp: 'あか', romaji: 'aka', ru: 'Красный' },
+          { jp: 'いけ', romaji: 'ike', ru: 'Пруд' },
+          { jp: 'おおきい', romaji: 'ookii', ru: 'Большой' },
+          { jp: 'です', romaji: 'desu', ru: 'Быть / Являться' }
+        ],
+        grammar: [
+          { title: 'Связка です (Desu)', content: 'Используется в конце предложения для вежливости. "Aka desu" — (Это) красный.' }
+        ],
+        quiz: [
+          { q: 'Как читается "き"?', options: ['ka', 'ku', 'ki', 'ke'], answer: 'ki' },
+          { type: 'build', q: 'Собери: "Это красный"', options: ['おおきい', 'あか', 'いけ', 'です'], answer: ['あか', 'です'] },
+          { type: 'build', q: 'Собери: "Это большое лицо"', options: ['おおきい', 'です', 'かお', 'あか'], answer: ['おおきい', 'かお', 'です'] }
+        ]
+      },
+      {
+        id: 3,
+        title: 'День 3: Ряд "С" и Вопросы',
+        desc: 'Хирагана (Са-Со) и частица "Ka".',
+        kana: [
+          { jp: 'さ', romaji: 'sa' }, { jp: 'し', romaji: 'shi' }, { jp: 'す', romaji: 'su' }, { jp: 'せ', romaji: 'se' }, { jp: 'そ', romaji: 'so' }
+        ],
+        vocab: [
+          { jp: 'すし', romaji: 'sushi', ru: 'Суши' },
+          { jp: 'かさ', romaji: 'kasa', ru: 'Зонт' },
+          { jp: 'うし', romaji: 'ushi', ru: 'Корова' },
+          { jp: 'か', romaji: 'ka', ru: 'Вопросительная частица' }
+        ],
+        grammar: [
+          { title: 'Частица か (Ka)', content: 'Ставится в конец предложения. "Sushi desu ka?" — Это суши?' }
+        ],
+        quiz: [
+          { type: 'audio', audioText: 'かさ', q: 'Перевод:', options: ['Суши', 'Зонт', 'Корова', 'Медленный'], answer: 'Зонт' },
+          { type: 'build', q: 'Собери: "Это суши?"', options: ['です', 'すし', 'か', 'かさ'], answer: ['すし', 'です', 'か'] },
+          { type: 'build', q: 'Собери: "Это корова?"', options: ['うし', 'か', 'です', 'あか'], answer: ['うし', 'です', 'か'] }
+        ]
+      },
+      {
+        id: 4,
+        title: 'День 4: Частица は (Wa)',
+        desc: 'Тема предложения.',
+        kana: [],
+        vocab: [
+          { jp: 'わたし', romaji: 'watashi', ru: 'Я' },
+          { jp: 'がくせい', romaji: 'gakusei', ru: 'Студент' },
+          { jp: 'は', romaji: 'wa', ru: 'Частица темы (пишется "ha")' }
+        ],
+        grammar: [
+          { title: 'Частица は (Wa)', content: 'Обозначает ТЕМУ предложения. "Watashi wa..." — Я...' }
+        ],
+        quiz: [
+          { q: 'Какая частица обозначает тему?', options: ['ka', 'desu', 'wa (は)', 'o (を)'], answer: 'wa (は)' },
+          { type: 'build', q: 'Собери: "Я студент"', options: ['がくせい', 'わたし', 'です', 'は'], answer: ['わたし', 'は', 'がくせい', 'です'] },
+          { type: 'build', q: 'Собери: "Я корова?"', options: ['か', 'は', 'わたし', 'うし', 'です'], answer: ['わたし', 'は', 'うし', 'です', 'か'] }
+        ]
+      }
+    ];
+
+    const allVocabPool = courseData.reduce((acc, lesson) => lesson.vocab ? acc.concat(lesson.vocab) : acc, []);
+
+    const calculateSRS = (quality, card) => {
+      let { interval, repetition, efactor } = card;
+      if (quality >= 3) {
+        if (repetition === 0) interval = 1;
+        else if (repetition === 1) interval = 6;
+        else interval = Math.round(interval * efactor);
+        repetition += 1;
+      } else {
+        repetition = 0;
+        interval = 1;
+      }
+      efactor = efactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
+      if (efactor < 1.3) efactor = 1.3;
+      return { interval, repetition, efactor, dueDate: Date.now() + interval * 60000 }; 
+    };
+
+    function App() {
+      const [globalView, setGlobalView] = useState('lessons'); 
+      const [activeLessonId, setActiveLessonId] = useState(null);
+      const [activeTab, setActiveTab] = useState('kana');
+      
+      const [currentQ, setCurrentQ] = useState(0);
+      const [score, setScore] = useState(0);
+      const [showResult, setShowResult] = useState(false);
+      const [selectedAnswer, setSelectedAnswer] = useState(null);
+      const [buildAnswer, setBuildAnswer] = useState([]); 
+      
+      const [completedLessons, setCompletedLessons] = useState([]);
+      const [srsDeck, setSrsDeck] = useState([]);
+      
+      const [currentSrsCard, setCurrentSrsCard] = useState(null);
+      const [srsOptions, setSrsOptions] = useState([]);
+      const [srsAnsweredState, setSrsAnsweredState] = useState(null); 
+      const [selectedSrsOption, setSelectedSrsOption] = useState(null);
+
+      const [isPlaying, setIsPlaying] = useState(false);
+      const audioRef = useRef(null);
+
+      useEffect(() => {
+        const manifest = {
+          name: "Nihongo App",
+          short_name: "Nihongo",
+          display: "standalone",
+          background_color: "#111827",
+          theme_color: "#1f2937",
+          icons: [{
+            src: "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23ef4444'/%3E%3Ctext x='50' y='65' font-size='40' text-anchor='middle' fill='white' font-family='sans-serif'%3Eあ%3C/text%3E%3C/svg%3E",
+            sizes: "192x192",
+            type: "image/svg+xml"
+          }]
+        };
+        
+        const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+        const manifestUrl = URL.createObjectURL(manifestBlob);
+        let link = document.querySelector('link[rel="manifest"]');
+        if (!link) {
+          link = document.createElement('link');
+          link.rel = 'manifest';
+          document.head.appendChild(link);
+        }
+        link.href = manifestUrl;
+
+        const swCode = `
+          self.addEventListener('install', (e) => self.skipWaiting());
+          self.addEventListener('activate', (e) => e.waitUntil(clients.claim()));
+          self.addEventListener('fetch', (e) => {
+            e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+          });
+        `;
+        const swBlob = new Blob([swCode], {type: 'application/javascript'});
+        const swUrl = URL.createObjectURL(swBlob);
+        
+        if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
+          navigator.serviceWorker.register(swUrl).catch(() => {});
+        }
+
+        const savedLessons = localStorage.getItem('nihongo_lessons');
+        const savedSrs = localStorage.getItem('nihongo_srs');
+        if (savedLessons) setCompletedLessons(JSON.parse(savedLessons));
+        if (savedSrs) setSrsDeck(JSON.parse(savedSrs));
+      }, []);
+
+      const saveProgress = (lessons, srs) => {
+        if (lessons) {
+          setCompletedLessons(lessons);
+          localStorage.setItem('nihongo_lessons', JSON.stringify(lessons));
+        }
+        if (srs) {
+          setSrsDeck(srs);
+          localStorage.setItem('nihongo_srs', JSON.stringify(srs));
+        }
+      };
+
+      const playAudio = (text) => {
+        if (audioRef.current) audioRef.current.pause();
+        window.speechSynthesis.cancel();
+
+        setIsPlaying(true);
+        const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=ja&client=tw-ob&q=${encodeURIComponent(text)}`;
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        
+        audio.onended = () => setIsPlaying(false);
+        audio.onerror = () => {
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = 'ja-JP';
+          utterance.rate = 0.8;
+          utterance.onend = () => setIsPlaying(false);
+          window.speechSynthesis.speak(utterance);
+        };
+        audio.play().catch(() => setIsPlaying(false));
+      };
+
+      const activeLesson = courseData.find(l => l.id === activeLessonId);
+
+      const addToSRS = (vocab) => {
+        const newCards = vocab.filter(v => !srsDeck.some(c => c.jp === v.jp)).map(v => ({
+          ...v, interval: 0, repetition: 0, efactor: 2.5, dueDate: 0 
+        }));
+        if (newCards.length > 0) saveProgress(null, [...srsDeck, ...newCards]);
+      };
+
+      const handleLessonComplete = () => {
+        if (!completedLessons.includes(activeLessonId)) {
+          saveProgress([...completedLessons, activeLessonId], null);
+        }
+        if (activeLesson.vocab) addToSRS(activeLesson.vocab);
+      };
+
+      const handleAnswer = (option, correctOption) => {
+        setSelectedAnswer(option);
+        setTimeout(() => {
+          if (option === correctOption) setScore(score + 1);
+          advanceQuiz(option === correctOption);
+        }, 1000);
+      };
+
+      const handleBuildWordClick = (word) => {
+        playAudio(word);
+        setBuildAnswer([...buildAnswer, word]);
+      };
+
+      const handleBuildWordRemove = (index) => {
+        playAudio(buildAnswer[index]);
+        setBuildAnswer(buildAnswer.filter((_, i) => i !== index));
+      };
+
+      const checkBuildAnswer = (correctArr) => {
+        const isCorrect = buildAnswer.join('') === correctArr.join('');
+        if (isCorrect) setScore(score + 1);
+        
+        const btns = document.querySelectorAll('.build-word');
+        btns.forEach(b => {
+          b.classList.add(isCorrect ? 'border-green-500' : 'border-red-500');
+          b.classList.add(isCorrect ? 'text-green-400' : 'text-red-400');
+        });
+
+        setTimeout(() => advanceQuiz(isCorrect), 1200);
+      };
+
+      const advanceQuiz = (lastWasCorrect) => {
+        if (currentQ < activeLesson.quiz.length - 1) {
+          setCurrentQ(currentQ + 1);
+          setSelectedAnswer(null);
+          setBuildAnswer([]);
+        } else {
+          setShowResult(true);
+          if ((score + (lastWasCorrect ? 1 : 0)) / activeLesson.quiz.length >= 0.8) {
+            handleLessonComplete();
+          }
+        }
+      };
+
+      const resetQuiz = () => {
+        setCurrentQ(0);
+        setScore(0);
+        setShowResult(false);
+        setSelectedAnswer(null);
+        setBuildAnswer([]);
+      };
+
+      const dueCards = srsDeck.filter(c => c.dueDate <= Date.now());
+
+      const startSrs = () => {
+        if (dueCards.length > 0) setupSrsCard(dueCards[0]);
+      };
+
+      const setupSrsCard = (card) => {
+        setCurrentSrsCard(card);
+        setSrsAnsweredState(null);
+        setSelectedSrsOption(null);
+        
+        const others = allVocabPool.filter(v => v.ru !== card.ru);
+        const shuffledOthers = [...others].sort(() => 0.5 - Math.random());
+        const options = [card, ...shuffledOthers.slice(0, 3)].sort(() => 0.5 - Math.random());
+        setSrsOptions(options);
+      };
+
+      const handleSrsOptionSelect = (opt) => {
+        if (srsAnsweredState !== null) return;
+        setSelectedSrsOption(opt);
+        
+        if (opt.ru === currentSrsCard.ru) {
+          setSrsAnsweredState('correct');
+          playAudio(currentSrsCard.jp);
+        } else {
+          setSrsAnsweredState('wrong');
+          playAudio(currentSrsCard.jp);
+          setTimeout(() => processSrsAnswer(1), 1500);
+        }
+      };
+
+      const processSrsAnswer = (quality) => {
+        const updatedCard = { ...currentSrsCard, ...calculateSRS(quality, currentSrsCard) };
+        const newDeck = srsDeck.map(c => c.jp === updatedCard.jp ? updatedCard : c);
+        saveProgress(null, newDeck);
+        
+        const remaining = newDeck.filter(c => c.dueDate <= Date.now());
+        if (remaining.length > 0) {
+          setupSrsCard(remaining[0]);
+        } else {
+          setCurrentSrsCard(null);
+        }
+      };
+
+      if (globalView === 'srs') {
+        return (
+          <div className="min-h-screen pb-24">
+            <header className="bg-gray-800 border-b border-gray-700 p-4 flex items-center shadow-md">
+              <button onClick={() => setGlobalView('lessons')} className="p-2 mr-2 bg-gray-700 rounded-full hover:bg-gray-600">
+                <Icon name="ArrowLeft" className="text-red-400" />
+              </button>
+              <h1 className="text-xl font-bold">Повторение</h1>
+            </header>
+
+            <main className="max-w-md mx-auto p-4 mt-4 text-center">
+              {!currentSrsCard ? (
+                <div className="mt-20">
+                  <Icon name="Layers" size={64} className="mx-auto text-green-500 mb-4" />
+                  <h2 className="text-2xl font-bold mb-2">Все карточки повторены!</h2>
+                  <p className="text-gray-400 mb-6">Следующие появятся позже.</p>
+                  <button onClick={() => setGlobalView('lessons')} className="bg-red-600 text-white px-6 py-3 rounded-xl font-bold">
+                    Вернуться к урокам
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700 min-h-[400px] flex flex-col justify-center">
+                  <span className="text-sm text-gray-400 mb-2 block">Осталось: {dueCards.length}</span>
+                  <h2 className="text-6xl font-bold mb-4">{currentSrsCard.jp}</h2>
+                  <button onClick={() => playAudio(currentSrsCard.jp)} className="mx-auto text-gray-400 hover:text-red-400 mb-6 p-2">
+                    <Icon name="Volume2" size={32} />
+                  </button>
+
+                  {srsAnsweredState === null ? (
+                    <div className="grid gap-3 mt-auto">
+                      {srsOptions.map((opt, i) => (
+                        <button key={i} onClick={() => handleSrsOptionSelect(opt)} className="w-full bg-gray-700 text-gray-200 py-3 rounded-xl font-bold border-2 border-transparent hover:border-gray-500">
+                          {opt.ru}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="animate-fade-in mt-auto">
+                      <div className="grid gap-3 mb-6">
+                        {srsOptions.map((opt, i) => {
+                          let btnClass = "w-full py-3 rounded-xl font-bold border-2 ";
+                          if (opt.ru === currentSrsCard.ru) {
+                            btnClass += "bg-green-900/50 border-green-500 text-green-300";
+                          } else if (opt.ru === selectedSrsOption.ru) {
+                            btnClass += "bg-red-900/50 border-red-500 text-red-300";
+                          } else {
+                            btnClass += "bg-gray-700 border-gray-600 text-gray-400 opacity-50";
+                          }
+                          return <button key={i} disabled className={btnClass}>{opt.ru}</button>;
+                        })}
+                      </div>
+
+                      {srsAnsweredState === 'correct' && (
+                        <div className="grid grid-cols-3 gap-2">
+                          <button onClick={() => processSrsAnswer(3)} className="bg-orange-900/50 text-orange-300 py-3 rounded-lg font-bold text-sm">Трудно</button>
+                          <button onClick={() => processSrsAnswer(4)} className="bg-green-900/50 text-green-300 py-3 rounded-lg font-bold text-sm">Хорошо</button>
+                          <button onClick={() => processSrsAnswer(5)} className="bg-blue-900/50 text-blue-300 py-3 rounded-lg font-bold text-sm">Легко</button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </main>
+          </div>
+    
