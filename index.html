@@ -174,21 +174,35 @@
       useEffect(() => {
         (async () => {
           try {
-            setFreqStatus('Загрузка top-10000 частотных слов...');
-            const r = await fetch('https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/ja/ja_full.txt');
-            if (!r.ok) throw new Error('freq unavailable');
-            const text = await r.text();
-            const topWords = text.split('\n').map((line) => line.trim().split(' ')[0]).filter(Boolean).slice(0, 10000);
+            setFreqStatus('Загрузка слов из Wiktionary (1000 основных)...');
+            const url = 'https://ru.wiktionary.org/w/api.php?action=parse&page=Приложение:1000_основных_японских_слов&prop=wikitext&format=json&origin=*';
+            const r = await fetch(url);
+            if (!r.ok) throw new Error('wiktionary unavailable');
+            const data = await r.json();
+            const wikitext = data?.parse?.wikitext?.['*'] || '';
+
+            const fromWiki = [];
+            const lines = wikitext.split('\n');
+            for (const line of lines) {
+              const m = line.match(/\{\{ja\|([^}]+)\}\}\s*[—-]\s*(.+)$/i);
+              if (!m) continue;
+              const jp = m[1].trim();
+              const tr = m[2].replace(/\{\{[^}]+\}\}/g, '').trim();
+              if (jp) fromWiki.push({ jp, tr: tr || 'перевод' });
+            }
+
             const baseMap = Object.fromEntries(baseVocab.map((v) => [v.jp, v.tr]));
             const uniq = [];
             const seen = new Set();
-            for (const jp of [...topWords, ...baseVocab.map((v) => v.jp)]) {
-              if (seen.has(jp)) continue;
+            for (const item of [...fromWiki, ...baseVocab]) {
+              const jp = item.jp;
+              if (!jp || seen.has(jp)) continue;
               seen.add(jp);
-              uniq.push({ jp, tr: baseMap[jp] || 'частотное слово' });
+              uniq.push({ jp, tr: baseMap[jp] || item.tr || 'слово из списка' });
             }
+            if (!uniq.length) throw new Error('wiktionary parse failed');
             setVocab(uniq);
-            setFreqStatus(`Подключен частотный список: ${Math.min(topWords.length, 10000)} слов`);
+            setFreqStatus(`Подключен список Wiktionary: ${uniq.length} слов`);
           } catch {
             setFreqStatus('Не удалось загрузить внешний список, используется локальный словарь');
           }
