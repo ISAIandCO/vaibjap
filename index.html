@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#101828" />
-  <meta name="description" content="Nihongo Quest — PWA-платформа для изучения японского языка с прогрессивной структурой уроков." />
+  <meta name="description" content="Nihongo Quest — PWA-платформа для изучения японского языка с правильной педагогической последовательностью." />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icons/icon-192.svg" type="image/svg+xml" />
   <title>Nihongo Quest</title>
@@ -15,14 +15,14 @@
   <style>
     body { background:#0b1220; color:#e2e8f0; }
     .glass { background: rgba(15,23,42,.8); border:1px solid rgba(148,163,184,.2); }
-    .tile { cursor: grab; user-select: none; }
+    .tile { cursor: grab; user-select: none; touch-action: manipulation; }
   </style>
 </head>
 <body class="min-h-screen">
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useEffect, useMemo, useState } = React;
+    const { useEffect, useMemo, useState, useRef } = React;
 
     const kanaBank = [
       ['あ','a'],['い','i'],['う','u'],['え','e'],['お','o'],['か','ka'],['き','ki'],['く','ku'],['け','ke'],['こ','ko'],
@@ -54,9 +54,15 @@
     ];
 
     const grammarBits = [
-      'は — частица темы: わたしは がくせいです。', 'です — вежливая связка в конце фразы.', 'か — вопросительная частица: ...ですか？',
-      'を — маркер прямого дополнения.', 'に — направление/время: えきに いきます。', 'で — место действия: がっこうで べんきょうします。',
-      'と — союз "и" для существительных.', 'の — принадлежность: わたしの ほん', 'も — тоже/также: わたしも がくせいです。'
+      'は — частица темы. Ставится после темы: わたしは がくせいです。',
+      'です — вежливая связка в конце нейтрального утверждения.',
+      'か — вопросительная частица. Делает фразу вопросом.',
+      'を — маркер прямого дополнения (что делаем?).',
+      'に — направление/время: куда? когда?',
+      'で — место действия: где происходит действие?',
+      'と — союз "и" для перечисления существительных.',
+      'の — принадлежность: чей/чья/чьё.',
+      'も — тоже/также: добавляет сходство.'
     ];
 
     const distractorsRu = ['вчера', 'машина', 'снег', 'море', 'суп', 'лес', 'река', 'гора', 'окно', 'дверь'];
@@ -66,15 +72,29 @@
     const mixedOptions = (correct, filler) => [correct, ...filler].slice(0, 4).sort(() => Math.random() - 0.5);
 
     const pickWordWithKana = (kanaChars, fallbackIndex) => {
-      const found = vocabBank.find((v, idx) => kanaChars.some((k) => v.jp.includes(k)) && idx >= (fallbackIndex % 8));
+      const found = vocabBank.find((v) => kanaChars.some((k) => v.jp.includes(k)));
       return found || pick(vocabBank, fallbackIndex);
     };
+
+    const makeTeachWordTask = (word) => ({
+      type: 'teach',
+      q: `Запомни слово: ${word.jp} — ${word.tr}`,
+      audio: word.jp,
+      answer: word.jp
+    });
+
+    const makeTeachGrammarTask = (rule) => ({
+      type: 'teach',
+      q: `Объяснение грамматики: ${rule}`,
+      audio: rule,
+      answer: rule
+    });
 
     const makeWordBuildTask = (word, translation, i) => {
       const chars = word.split('');
       const extras = kanaBank.map((x) => x[0]).slice(i % 12, (i % 12) + 8);
       const tiles = [...chars, ...extras.slice(0, Math.max(3, Math.ceil(chars.length / 2)))].sort(() => Math.random() - 0.5);
-      return { type: 'dragWord', q: `Собери слово (${translation}) перетаскиванием букв`, answer: word, audio: word, tiles };
+      return { type: 'dragWord', q: `Собери слово (${translation})`, answer: word, audio: word, tiles };
     };
 
     const makeAudioSpellingTask = (word, tr, alt1, alt2, alt3) => ({
@@ -93,7 +113,6 @@
 
       const targetWord = pickWordWithKana(studiedKana, day);
       const secondWord = pickWordWithKana([k2[0], k3[0]], day + 11);
-
       const phrase1 = pick(phraseBank, day);
       const phrase2 = pick(phraseBank, day + 4);
       const grammar = pick(grammarBits, day);
@@ -106,20 +125,23 @@
         unit: Math.ceil(day / 7),
         title: `День ${day}: ${targetWord.jp} + ${k1[0]}${k2[0]}${k3[0]}`,
         isReview: false,
-        durationMin: 7,
+        durationMin: 8,
         tasks: [
           { type: 'kana', q: `Новая буква: как читается ${k1[0]}?`, audio: k1[0], options: mixedOptions(k1[1], ['to', 'na', 'mu']), answer: k1[1] },
           { type: 'kana', q: `Новая буква: как читается ${k2[0]}?`, audio: k2[0], options: mixedOptions(k2[1], ['ra', 'yo', 'ne']), answer: k2[1] },
+          makeTeachWordTask(targetWord),
           { type: 'phrase', q: `Фраза дня: ${phrase1.jp}`, audio: phrase1.jp, options: mixedOptions(phrase1.tr, ['до встречи', 'я устал', 'приятного дня']), answer: phrase1.tr },
           { type: 'kanaPick', q: `Выбери символ для ${k3[1]}`, audio: k3[0], options: mixedOptions(k3[0], kanaDistractors.slice(day % 5, day % 5 + 3)), answer: k3[0] },
           makeAudioSpellingTask(targetWord.jp, targetWord.tr, distractWords[0], distractWords[1], distractWords[2]),
-          { type: 'grammar', q: 'Грамматика: выбери верное правило', audio: grammar, options: mixedOptions(grammar, ['Глагол всегда в начале', 'Частиц в японском нет', 'です = прошедшее время']), answer: grammar },
+          makeTeachGrammarTask(grammar),
+          { type: 'grammar', q: 'Теперь вопрос по правилу: выбери верное описание', audio: grammar, options: mixedOptions(grammar, ['Глагол всегда в начале', 'Частиц в японском нет', 'です = прошедшее время']), answer: grammar },
+          makeTeachWordTask(secondWord),
           makeWordBuildTask(secondWord.jp, secondWord.tr, day + 1),
-          { type: 'sentence', q: 'Выбери правильное предложение', audio: 'わたしは がくせいです', options: mixedOptions('わたしは がくせいです', ['わたし がくせい は', 'です わたし がくせい', 'がくせい か わたし']), answer: 'わたしは がくせいです' },
           makeAudioSpellingTask(secondWord.jp, secondWord.tr, distractWords2[0], distractWords2[1], distractWords2[2]),
-          { type: 'phrase', q: `Фраза дня: ${phrase2.jp}`, audio: phrase2.jp, options: mixedOptions(phrase2.tr, ['не понимаю', 'до завтра', 'доброй ночи']), answer: phrase2.tr },
           { type: 'translate', q: `Теперь перевод: ${targetWord.jp}`, audio: targetWord.jp, options: mixedOptions(targetWord.tr, distractorsRu.slice(day % 6, day % 6 + 3)), answer: targetWord.tr },
           { type: 'translate', q: `Теперь перевод: ${secondWord.jp}`, audio: secondWord.jp, options: mixedOptions(secondWord.tr, distractorsRu.slice((day + 2) % 6, ((day + 2) % 6) + 3)), answer: secondWord.tr },
+          { type: 'sentence', q: 'Выбери правильное предложение (слова уже были в уроке): わたし / がくせい', audio: 'わたしは がくせいです', options: mixedOptions('わたしは がくせいです', ['わたし がくせい は', 'です わたし がくせい', 'がくせい か わたし']), answer: 'わたしは がくせいです' },
+          { type: 'phrase', q: `Фраза дня: ${phrase2.jp}`, audio: phrase2.jp, options: mixedOptions(phrase2.tr, ['не понимаю', 'до завтра', 'доброй ночи']), answer: phrase2.tr },
           makeWordBuildTask(targetWord.jp, targetWord.tr, day + 7),
           { type: 'boss', q: 'Босс-раунд: Я завтра иду в школу', audio: 'わたしは あした がっこうに いきます', options: mixedOptions('わたしは あした がっこうに いきます', ['あしたは わたし いきます に がっこう', 'がっこうを あした です', 'わたし がっこう か']), answer: 'わたしは あした がっこうに いきます' }
         ]
@@ -132,6 +154,7 @@
       const v2 = pick(vocabBank, base + 5);
       const p1 = pick(phraseBank, base + 2);
       const k1 = pick(kanaBank, base + 1);
+      const g = pick(grammarBits, base + 3);
 
       return {
         id: day,
@@ -141,12 +164,16 @@
         durationMin: 8,
         tasks: [
           { type: 'kana', q: `Повторение буквы: как читается ${k1[0]}?`, audio: k1[0], options: mixedOptions(k1[1], ['re', 'yo', 'wa']), answer: k1[1] },
+          makeTeachWordTask(v1),
           makeAudioSpellingTask(v1.jp, v1.tr, pick(vocabBank, base + 1).jp, pick(vocabBank, base + 2).jp, pick(vocabBank, base + 3).jp),
           { type: 'translate', q: `Повторение перевода: ${v1.jp}`, audio: v1.jp, options: mixedOptions(v1.tr, ['город', 'море', 'ночь']), answer: v1.tr },
+          makeTeachGrammarTask(g),
+          { type: 'grammar', q: 'Вопрос по грамматике', audio: g, options: mixedOptions(g, ['Частицы не нужны', 'Глагол всегда первый', 'Вежливости не существует']), answer: g },
+          makeTeachWordTask(v2),
           makeWordBuildTask(v2.jp, v2.tr, day + 10),
-          { type: 'phrase', q: `Повторение фразы: ${p1.jp}`, audio: p1.jp, options: mixedOptions(p1.tr, ['до завтра', 'я студент', 'приятного аппетита']), answer: p1.tr },
           makeAudioSpellingTask(v2.jp, v2.tr, pick(vocabBank, base + 4).jp, pick(vocabBank, base + 6).jp, pick(vocabBank, base + 7).jp),
           { type: 'translate', q: `Повторение перевода: ${v2.jp}`, audio: v2.jp, options: mixedOptions(v2.tr, ['река', 'гора', 'дверь']), answer: v2.tr },
+          { type: 'phrase', q: `Повторение фразы: ${p1.jp}`, audio: p1.jp, options: mixedOptions(p1.tr, ['до завтра', 'я студент', 'приятного аппетита']), answer: p1.tr },
           { type: 'boss', q: 'Контроль: выбери корректное предложение', audio: 'わたしは がくせいです', options: mixedOptions('わたしは がくせいです', ['わたし がくせい は', 'です わたし がくせい', 'わたし か がくせい']), answer: 'わたしは がくせいです' }
         ]
       };
@@ -171,6 +198,8 @@
       const [dropZone, setDropZone] = useState([]);
       const [poolTiles, setPoolTiles] = useState([]);
       const [result, setResult] = useState(null);
+      const [speakHint, setSpeakHint] = useState('');
+      const lastSpokenRef = useRef({ text: '', time: 0, count: 0 });
 
       useEffect(() => {
         localStorage.setItem('nq_progress', JSON.stringify(progress));
@@ -190,6 +219,7 @@
       useEffect(() => {
         if (!currentTask) return;
         setChoice('');
+        setSpeakHint('');
         if (currentTask.type === 'dragWord') {
           setDropZone([]);
           setPoolTiles(currentTask.tiles);
@@ -198,11 +228,25 @@
 
       const speak = (text) => {
         if (!window.speechSynthesis || !text) return;
+        const now = Date.now();
+        const sameText = lastSpokenRef.current.text === text;
+        const closeClick = now - lastSpokenRef.current.time < 2500;
+        const shouldSlow = sameText && closeClick;
+
+        lastSpokenRef.current = {
+          text,
+          time: now,
+          count: shouldSlow ? lastSpokenRef.current.count + 1 : 1
+        };
+
         const u = new SpeechSynthesisUtterance(text);
         u.lang = 'ja-JP';
+        u.rate = shouldSlow ? 0.7 : 1;
+        setSpeakHint(shouldSlow ? 'Замедленное воспроизведение' : 'Обычное воспроизведение');
         window.speechSynthesis.cancel();
         window.speechSynthesis.speak(u);
       };
+    };
 
       const startLesson = (lesson) => {
         if (lesson.id > unlockedUpTo) return;
@@ -215,7 +259,8 @@
 
       const saveAnswerAndNext = () => {
         if (!currentTask) return;
-        const userAnswer = currentTask.type === 'dragWord' ? dropZone.join('') : choice;
+        const isTeach = currentTask.type === 'teach';
+        const userAnswer = isTeach ? '__learned__' : (currentTask.type === 'dragWord' ? dropZone.join('') : choice);
         setAnswers((prev) => [...prev, { task: currentTask, userAnswer }]);
 
         if (index + 1 < attemptTasks.length) {
@@ -224,14 +269,15 @@
         }
 
         const finalAnswers = [...answers, { task: currentTask, userAnswer }];
-        const wrong = finalAnswers.filter((x) => x.userAnswer !== x.task.answer);
-        const score = finalAnswers.length - wrong.length;
-        setResult({ score, total: finalAnswers.length, wrong, all: finalAnswers });
+        const wrong = finalAnswers.filter((x) => x.task.type !== 'teach' && x.userAnswer !== x.task.answer);
+        const scoredTotal = finalAnswers.filter((x) => x.task.type !== 'teach').length;
+        const score = scoredTotal - wrong.length;
+        setResult({ score, total: scoredTotal, wrong, all: finalAnswers });
       };
 
       const finishLesson = () => {
         const today = new Date().toISOString().slice(0, 10);
-        const gain = 20 + Math.round((result.score / result.total) * 40);
+        const gain = 20 + Math.round((result.score / Math.max(1, result.total)) * 40);
         setProgress((p) => ({ ...p, [activeId]: true }));
         setStats((s) => ({ xp: s.xp + gain, streak: s.lastDate === today ? s.streak : s.streak + 1, lastDate: today }));
         setActiveId(null);
@@ -247,16 +293,23 @@
         setResult(null);
       };
 
-      const onDragStart = (e, tile) => e.dataTransfer.setData('text/plain', tile);
-      const moveToDrop = (e) => {
-        e.preventDefault();
-        const tile = e.dataTransfer.getData('text/plain');
-        const idx = poolTiles.indexOf(tile);
-        if (idx === -1) return;
+      const onDragStart = (e, tile, idx) => e.dataTransfer.setData('text/plain', `${tile}::${idx}`);
+      const moveTileFromPool = (payload) => {
+        const [tile, idxStr] = payload.split('::');
+        const idx = Number(idxStr);
+        if (!Number.isInteger(idx) || poolTiles[idx] !== tile) return;
         const nextPool = [...poolTiles];
         nextPool.splice(idx, 1);
         setPoolTiles(nextPool);
         setDropZone((d) => [...d, tile]);
+      };
+      const moveToDrop = (e) => {
+        e.preventDefault();
+        moveTileFromPool(e.dataTransfer.getData('text/plain'));
+      };
+      const tapToDrop = (idx) => {
+        const payload = `${poolTiles[idx]}::${idx}`;
+        moveTileFromPool(payload);
       };
       const moveBack = (idx) => {
         const next = [...dropZone];
@@ -271,7 +324,7 @@
             <header className="glass rounded-2xl p-5 flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
               <div>
                 <h1 className="text-2xl font-bold">Nihongo Quest (PWA)</h1>
-                <p className="text-slate-300">42 урока, открываются по очереди. Логика урока: сначала буквы и произношение, потом выбор написания по аудио, затем перевод.</p>
+                <p className="text-slate-300">Сначала обучение буквам/словам/грамматике, затем проверка. Повторное нажатие 🔊 даёт замедленное воспроизведение.</p>
               </div>
               <div className="grid grid-cols-3 gap-3 text-sm">
                 <div className="glass rounded-xl px-3 py-2">XP<br/><b>{stats.xp}</b></div>
@@ -333,6 +386,7 @@
         );
       }
 
+      const isTeach = currentTask.type === 'teach';
       return (
         <main className="max-w-3xl mx-auto p-4 md:p-8 space-y-4">
           <section className="glass rounded-2xl p-5 space-y-4">
@@ -342,16 +396,27 @@
             </div>
             <h2 className="text-xl font-semibold">{currentTask.q}</h2>
             <button onClick={() => speak(currentTask.audio || currentTask.answer)} className="bg-indigo-600 hover:bg-indigo-500 rounded px-3 py-2">🔊 Прослушать</button>
+            {speakHint && <p className="text-xs text-indigo-300">{speakHint}</p>}
 
-            {currentTask.type === 'dragWord' ? (
+            {isTeach ? (
+              <p className="text-slate-300 bg-slate-900 rounded p-3">Это обучающий шаг. Запомни материал и переходи дальше.</p>
+            ) : currentTask.type === 'dragWord' ? (
               <div className="space-y-3">
                 <div onDragOver={(e) => e.preventDefault()} onDrop={moveToDrop} className="min-h-16 rounded border border-dashed border-emerald-400 p-2 flex flex-wrap gap-2 bg-emerald-900/10">
-                  {dropZone.length === 0 ? <span className="text-slate-400">Перетащи буквы сюда</span> : null}
+                  {dropZone.length === 0 ? <span className="text-slate-400">Перетащи буквы сюда или нажми на букву ниже</span> : null}
                   {dropZone.map((tile, idx) => <button key={`${tile}-${idx}`} onClick={() => moveBack(idx)} className="bg-emerald-800/60 rounded px-3 py-1">{tile}</button>)}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {poolTiles.map((tile, idx) => (
-                    <div key={`${tile}-pool-${idx}`} draggable onDragStart={(e) => onDragStart(e, tile)} className="tile bg-slate-700 rounded px-3 py-1">{tile}</div>
+                    <button
+                      key={`${tile}-pool-${idx}`}
+                      draggable
+                      onDragStart={(e) => onDragStart(e, tile, idx)}
+                      onClick={() => tapToDrop(idx)}
+                      className="tile bg-slate-700 rounded px-3 py-1"
+                    >
+                      {tile}
+                    </button>
                   ))}
                 </div>
               </div>
