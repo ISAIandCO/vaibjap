@@ -1,423 +1,376 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Nihongo App</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#101828" />
+  <meta name="description" content="Nihongo Quest — PWA-платформа для изучения японского языка с прогрессивной структурой уроков." />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon-192.svg" type="image/svg+xml" />
+  <title>Nihongo Quest</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-    .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
-    .pb-safe { padding-bottom: env(safe-area-inset-bottom, 1rem); }
-    body { background-color: #111827; color: #f3f4f6; overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
+    body { background:#0b1220; color:#e2e8f0; }
+    .glass { background: rgba(15,23,42,.8); border:1px solid rgba(148,163,184,.2); }
+    .tile { cursor: grab; user-select: none; }
   </style>
 </head>
-<body>
+<body class="min-h-screen">
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect, useRef } = React;
+    const { useEffect, useMemo, useState } = React;
 
-    const Icon = ({ name, size = 24, className = "" }) => {
-      const paths = {
-        Volume2: '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>',
-        BookOpen: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>',
-        Brain: '<path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/>',
-        Type: '<polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/>',
-        ArrowLeft: '<line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline>',
-        RefreshCcw: '<polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>',
-        PlayCircle: '<circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon>',
-        CheckCircle: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>',
-        FileText: '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line>',
-        Headphones: '<path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"></path>',
-        Layers: '<polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline>'
-      };
-      return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} dangerouslySetInnerHTML={{__html: paths[name]}} />;
-    };
-
-    const courseData = [
-      {
-        id: 1,
-        title: 'День 1: Гласные и Основы',
-        desc: 'Азбука (А-О), базовые слова и структура.',
-        kana: [
-          { jp: 'あ', romaji: 'a' }, { jp: 'い', romaji: 'i' }, { jp: 'う', romaji: 'u' }, { jp: 'え', romaji: 'e' }, { jp: 'お', romaji: 'o' }
-        ],
-        vocab: [
-          { jp: 'はい', romaji: 'hai', ru: 'Да' },
-          { jp: 'いいえ', romaji: 'iie', ru: 'Нет' },
-          { jp: 'あい', romaji: 'ai', ru: 'Любовь' },
-          { jp: 'うえ', romaji: 'ue', ru: 'Верх' },
-          { jp: 'あお', romaji: 'ao', ru: 'Синий' }
-        ],
-        grammar: [
-          { title: 'Порядок слов', content: 'Глагол ВСЕГДА стоит в конце предложения. [Подлежащее] + [Объект] + [Глагол].' }
-        ],
-        quiz: [
-          { q: 'Как читается "あ"?', options: ['i', 'a', 'e', 'o'], answer: 'a' },
-          { type: 'audio', audioText: 'あお', q: 'Перевод:', options: ['Синий', 'Верх', 'Да', 'Любовь'], answer: 'Синий' },
-          { type: 'build', q: 'Собери фразу "Да, любовь"', options: ['はい', 'あお', 'あい', 'いいえ'], answer: ['はい', 'あい'] }
-        ]
-      },
-      {
-        id: 2,
-        title: 'День 2: Ряд "К" и "Desu"',
-        desc: 'Хирагана (Ка-Ко) и вежливое утверждение.',
-        kana: [
-          { jp: 'か', romaji: 'ka' }, { jp: 'き', romaji: 'ki' }, { jp: 'く', romaji: 'ku' }, { jp: 'け', romaji: 'ke' }, { jp: 'こ', romaji: 'ko' }
-        ],
-        vocab: [
-          { jp: 'かお', romaji: 'kao', ru: 'Лицо' },
-          { jp: 'あか', romaji: 'aka', ru: 'Красный' },
-          { jp: 'いけ', romaji: 'ike', ru: 'Пруд' },
-          { jp: 'おおきい', romaji: 'ookii', ru: 'Большой' },
-          { jp: 'です', romaji: 'desu', ru: 'Быть / Являться' }
-        ],
-        grammar: [
-          { title: 'Связка です (Desu)', content: 'Используется в конце предложения для вежливости. "Aka desu" — (Это) красный.' }
-        ],
-        quiz: [
-          { q: 'Как читается "き"?', options: ['ka', 'ku', 'ki', 'ke'], answer: 'ki' },
-          { type: 'build', q: 'Собери: "Это красный"', options: ['おおきい', 'あか', 'いけ', 'です'], answer: ['あか', 'です'] },
-          { type: 'build', q: 'Собери: "Это большое лицо"', options: ['おおきい', 'です', 'かお', 'あか'], answer: ['おおきい', 'かお', 'です'] }
-        ]
-      },
-      {
-        id: 3,
-        title: 'День 3: Ряд "С" и Вопросы',
-        desc: 'Хирагана (Са-Со) и частица "Ka".',
-        kana: [
-          { jp: 'さ', romaji: 'sa' }, { jp: 'し', romaji: 'shi' }, { jp: 'す', romaji: 'su' }, { jp: 'せ', romaji: 'se' }, { jp: 'そ', romaji: 'so' }
-        ],
-        vocab: [
-          { jp: 'すし', romaji: 'sushi', ru: 'Суши' },
-          { jp: 'かさ', romaji: 'kasa', ru: 'Зонт' },
-          { jp: 'うし', romaji: 'ushi', ru: 'Корова' },
-          { jp: 'か', romaji: 'ka', ru: 'Вопросительная частица' }
-        ],
-        grammar: [
-          { title: 'Частица か (Ka)', content: 'Ставится в конец предложения. "Sushi desu ka?" — Это суши?' }
-        ],
-        quiz: [
-          { type: 'audio', audioText: 'かさ', q: 'Перевод:', options: ['Суши', 'Зонт', 'Корова', 'Медленный'], answer: 'Зонт' },
-          { type: 'build', q: 'Собери: "Это суши?"', options: ['です', 'すし', 'か', 'かさ'], answer: ['すし', 'です', 'か'] },
-          { type: 'build', q: 'Собери: "Это корова?"', options: ['うし', 'か', 'です', 'あか'], answer: ['うし', 'です', 'か'] }
-        ]
-      },
-      {
-        id: 4,
-        title: 'День 4: Частица は (Wa)',
-        desc: 'Тема предложения.',
-        kana: [],
-        vocab: [
-          { jp: 'わたし', romaji: 'watashi', ru: 'Я' },
-          { jp: 'がくせい', romaji: 'gakusei', ru: 'Студент' },
-          { jp: 'は', romaji: 'wa', ru: 'Частица темы (пишется "ha")' }
-        ],
-        grammar: [
-          { title: 'Частица は (Wa)', content: 'Обозначает ТЕМУ предложения. "Watashi wa..." — Я...' }
-        ],
-        quiz: [
-          { q: 'Какая частица обозначает тему?', options: ['ka', 'desu', 'wa (は)', 'o (を)'], answer: 'wa (は)' },
-          { type: 'build', q: 'Собери: "Я студент"', options: ['がくせい', 'わたし', 'です', 'は'], answer: ['わたし', 'は', 'がくせい', 'です'] },
-          { type: 'build', q: 'Собери: "Я корова?"', options: ['か', 'は', 'わたし', 'うし', 'です'], answer: ['わたし', 'は', 'うし', 'です', 'か'] }
-        ]
-      }
+    const kanaBank = [
+      ['あ','a'],['い','i'],['う','u'],['え','e'],['お','o'],['か','ka'],['き','ki'],['く','ku'],['け','ke'],['こ','ko'],
+      ['さ','sa'],['し','shi'],['す','su'],['せ','se'],['そ','so'],['た','ta'],['ち','chi'],['つ','tsu'],['て','te'],['と','to'],
+      ['な','na'],['に','ni'],['ぬ','nu'],['ね','ne'],['の','no'],['は','ha'],['ひ','hi'],['ふ','fu'],['へ','he'],['ほ','ho'],
+      ['ま','ma'],['み','mi'],['む','mu'],['め','me'],['も','mo'],['や','ya'],['ゆ','yu'],['よ','yo'],['ら','ra'],['り','ri'],
+      ['る','ru'],['れ','re'],['ろ','ro'],['わ','wa'],['を','wo'],['ん','n']
     ];
 
-    const allVocabPool = courseData.reduce((acc, lesson) => lesson.vocab ? acc.concat(lesson.vocab) : acc, []);
+    const vocabBank = [
+      { jp:'わたし', tr:'я' }, { jp:'あなた', tr:'ты/вы' }, { jp:'がくせい', tr:'студент' }, { jp:'せんせい', tr:'учитель' },
+      { jp:'みず', tr:'вода' }, { jp:'ごはん', tr:'рис/еда' }, { jp:'ほん', tr:'книга' }, { jp:'ともだち', tr:'друг' },
+      { jp:'きょう', tr:'сегодня' }, { jp:'あした', tr:'завтра' }, { jp:'いぬ', tr:'собака' }, { jp:'ねこ', tr:'кошка' },
+      { jp:'えき', tr:'станция' }, { jp:'がっこう', tr:'школа' }, { jp:'しごと', tr:'работа' }, { jp:'にほん', tr:'Япония' },
+      { jp:'かぞく', tr:'семья' }, { jp:'くるま', tr:'машина' }, { jp:'でんしゃ', tr:'поезд' }, { jp:'じてんしゃ', tr:'велосипед' },
+      { jp:'えいが', tr:'фильм' }, { jp:'おんがく', tr:'музыка' }, { jp:'りょこう', tr:'путешествие' }, { jp:'じかん', tr:'время' },
+      { jp:'いま', tr:'сейчас' }, { jp:'まいにち', tr:'каждый день' }, { jp:'あさ', tr:'утро' }, { jp:'よる', tr:'ночь' },
+      { jp:'たべもの', tr:'еда' }, { jp:'のみもの', tr:'напиток' }, { jp:'りんご', tr:'яблоко' }, { jp:'さかな', tr:'рыба' },
+      { jp:'にく', tr:'мясо' }, { jp:'やさい', tr:'овощи' }, { jp:'おちゃ', tr:'чай' }, { jp:'ぎんこう', tr:'банк' },
+      { jp:'びょういん', tr:'больница' }, { jp:'こうえん', tr:'парк' }, { jp:'くに', tr:'страна' }, { jp:'まち', tr:'город' }
+    ];
 
-    const calculateSRS = (quality, card) => {
-      let { interval, repetition, efactor } = card;
-      if (quality >= 3) {
-        if (repetition === 0) interval = 1;
-        else if (repetition === 1) interval = 6;
-        else interval = Math.round(interval * efactor);
-        repetition += 1;
-      } else {
-        repetition = 0;
-        interval = 1;
-      }
-      efactor = efactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
-      if (efactor < 1.3) efactor = 1.3;
-      return { interval, repetition, efactor, dueDate: Date.now() + interval * 60000 }; 
+    const phraseBank = [
+      { jp:'おはようございます', tr:'доброе утро' }, { jp:'こんにちは', tr:'добрый день' }, { jp:'こんばんは', tr:'добрый вечер' },
+      { jp:'ありがとうございます', tr:'спасибо' }, { jp:'すみません', tr:'извините' }, { jp:'はじめまして', tr:'приятно познакомиться' },
+      { jp:'よろしくおねがいします', tr:'прошу о сотрудничестве' }, { jp:'いただきます', tr:'приятного аппетита (перед едой)' },
+      { jp:'ごちそうさまでした', tr:'спасибо за еду' }, { jp:'わかりません', tr:'я не понимаю' }, { jp:'だいじょうぶです', tr:'всё в порядке' },
+      { jp:'またあした', tr:'увидимся завтра' }
+    ];
+
+    const grammarBits = [
+      'は — частица темы: わたしは がくせいです。', 'です — вежливая связка в конце фразы.', 'か — вопросительная частица: ...ですか？',
+      'を — маркер прямого дополнения.', 'に — направление/время: えきに いきます。', 'で — место действия: がっこうで べんきょうします。',
+      'と — союз "и" для существительных.', 'の — принадлежность: わたしの ほん', 'も — тоже/также: わたしも がくせいです。'
+    ];
+
+    const distractorsRu = ['вчера', 'машина', 'снег', 'море', 'суп', 'лес', 'река', 'гора', 'окно', 'дверь'];
+    const kanaDistractors = ['め', 'ぬ', 'を', 'れ', 'や', 'よ', 'む', 'の', 'ひ', 'ら'];
+
+    const pick = (arr, i) => arr[i % arr.length];
+    const mixedOptions = (correct, filler) => [correct, ...filler].slice(0, 4).sort(() => Math.random() - 0.5);
+
+    const pickWordWithKana = (kanaChars, fallbackIndex) => {
+      const found = vocabBank.find((v, idx) => kanaChars.some((k) => v.jp.includes(k)) && idx >= (fallbackIndex % 8));
+      return found || pick(vocabBank, fallbackIndex);
     };
 
-    function App() {
-      const [globalView, setGlobalView] = useState('lessons'); 
-      const [activeLessonId, setActiveLessonId] = useState(null);
-      const [activeTab, setActiveTab] = useState('kana');
-      
-      const [currentQ, setCurrentQ] = useState(0);
-      const [score, setScore] = useState(0);
-      const [showResult, setShowResult] = useState(false);
-      const [selectedAnswer, setSelectedAnswer] = useState(null);
-      const [buildAnswer, setBuildAnswer] = useState([]); 
-      
-      const [completedLessons, setCompletedLessons] = useState([]);
-      const [srsDeck, setSrsDeck] = useState([]);
-      
-      const [currentSrsCard, setCurrentSrsCard] = useState(null);
-      const [srsOptions, setSrsOptions] = useState([]);
-      const [srsAnsweredState, setSrsAnsweredState] = useState(null); 
-      const [selectedSrsOption, setSelectedSrsOption] = useState(null);
+    const makeWordBuildTask = (word, translation, i) => {
+      const chars = word.split('');
+      const extras = kanaBank.map((x) => x[0]).slice(i % 12, (i % 12) + 8);
+      const tiles = [...chars, ...extras.slice(0, Math.max(3, Math.ceil(chars.length / 2)))].sort(() => Math.random() - 0.5);
+      return { type: 'dragWord', q: `Собери слово (${translation}) перетаскиванием букв`, answer: word, audio: word, tiles };
+    };
 
-      const [isPlaying, setIsPlaying] = useState(false);
-      const audioRef = useRef(null);
+    const makeAudioSpellingTask = (word, tr, alt1, alt2, alt3) => ({
+      type: 'audioSpell',
+      q: `Прослушай и выбери написание слова («${tr}»)`,
+      audio: word,
+      options: mixedOptions(word, [alt1, alt2, alt3]),
+      answer: word
+    });
+
+    const makeMainLesson = (day) => {
+      const k1 = pick(kanaBank, day - 1);
+      const k2 = pick(kanaBank, day + 3);
+      const k3 = pick(kanaBank, day + 8);
+      const studiedKana = [k1[0], k2[0], k3[0]];
+
+      const targetWord = pickWordWithKana(studiedKana, day);
+      const secondWord = pickWordWithKana([k2[0], k3[0]], day + 11);
+
+      const phrase1 = pick(phraseBank, day);
+      const phrase2 = pick(phraseBank, day + 4);
+      const grammar = pick(grammarBits, day);
+
+      const distractWords = [pick(vocabBank, day + 1).jp, pick(vocabBank, day + 2).jp, pick(vocabBank, day + 5).jp];
+      const distractWords2 = [pick(vocabBank, day + 6).jp, pick(vocabBank, day + 7).jp, pick(vocabBank, day + 9).jp];
+
+      return {
+        id: day,
+        unit: Math.ceil(day / 7),
+        title: `День ${day}: ${targetWord.jp} + ${k1[0]}${k2[0]}${k3[0]}`,
+        isReview: false,
+        durationMin: 7,
+        tasks: [
+          { type: 'kana', q: `Новая буква: как читается ${k1[0]}?`, audio: k1[0], options: mixedOptions(k1[1], ['to', 'na', 'mu']), answer: k1[1] },
+          { type: 'kana', q: `Новая буква: как читается ${k2[0]}?`, audio: k2[0], options: mixedOptions(k2[1], ['ra', 'yo', 'ne']), answer: k2[1] },
+          { type: 'phrase', q: `Фраза дня: ${phrase1.jp}`, audio: phrase1.jp, options: mixedOptions(phrase1.tr, ['до встречи', 'я устал', 'приятного дня']), answer: phrase1.tr },
+          { type: 'kanaPick', q: `Выбери символ для ${k3[1]}`, audio: k3[0], options: mixedOptions(k3[0], kanaDistractors.slice(day % 5, day % 5 + 3)), answer: k3[0] },
+          makeAudioSpellingTask(targetWord.jp, targetWord.tr, distractWords[0], distractWords[1], distractWords[2]),
+          { type: 'grammar', q: 'Грамматика: выбери верное правило', audio: grammar, options: mixedOptions(grammar, ['Глагол всегда в начале', 'Частиц в японском нет', 'です = прошедшее время']), answer: grammar },
+          makeWordBuildTask(secondWord.jp, secondWord.tr, day + 1),
+          { type: 'sentence', q: 'Выбери правильное предложение', audio: 'わたしは がくせいです', options: mixedOptions('わたしは がくせいです', ['わたし がくせい は', 'です わたし がくせい', 'がくせい か わたし']), answer: 'わたしは がくせいです' },
+          makeAudioSpellingTask(secondWord.jp, secondWord.tr, distractWords2[0], distractWords2[1], distractWords2[2]),
+          { type: 'phrase', q: `Фраза дня: ${phrase2.jp}`, audio: phrase2.jp, options: mixedOptions(phrase2.tr, ['не понимаю', 'до завтра', 'доброй ночи']), answer: phrase2.tr },
+          { type: 'translate', q: `Теперь перевод: ${targetWord.jp}`, audio: targetWord.jp, options: mixedOptions(targetWord.tr, distractorsRu.slice(day % 6, day % 6 + 3)), answer: targetWord.tr },
+          { type: 'translate', q: `Теперь перевод: ${secondWord.jp}`, audio: secondWord.jp, options: mixedOptions(secondWord.tr, distractorsRu.slice((day + 2) % 6, ((day + 2) % 6) + 3)), answer: secondWord.tr },
+          makeWordBuildTask(targetWord.jp, targetWord.tr, day + 7),
+          { type: 'boss', q: 'Босс-раунд: Я завтра иду в школу', audio: 'わたしは あした がっこうに いきます', options: mixedOptions('わたしは あした がっこうに いきます', ['あしたは わたし いきます に がっこう', 'がっこうを あした です', 'わたし がっこう か']), answer: 'わたしは あした がっこうに いきます' }
+        ]
+      };
+    };
+
+    const makeReviewLesson = (day) => {
+      const base = day * 2;
+      const v1 = pick(vocabBank, base);
+      const v2 = pick(vocabBank, base + 5);
+      const p1 = pick(phraseBank, base + 2);
+      const k1 = pick(kanaBank, base + 1);
+
+      return {
+        id: day,
+        unit: Math.ceil(day / 7),
+        title: `День ${day}: Повторение юнита`,
+        isReview: true,
+        durationMin: 8,
+        tasks: [
+          { type: 'kana', q: `Повторение буквы: как читается ${k1[0]}?`, audio: k1[0], options: mixedOptions(k1[1], ['re', 'yo', 'wa']), answer: k1[1] },
+          makeAudioSpellingTask(v1.jp, v1.tr, pick(vocabBank, base + 1).jp, pick(vocabBank, base + 2).jp, pick(vocabBank, base + 3).jp),
+          { type: 'translate', q: `Повторение перевода: ${v1.jp}`, audio: v1.jp, options: mixedOptions(v1.tr, ['город', 'море', 'ночь']), answer: v1.tr },
+          makeWordBuildTask(v2.jp, v2.tr, day + 10),
+          { type: 'phrase', q: `Повторение фразы: ${p1.jp}`, audio: p1.jp, options: mixedOptions(p1.tr, ['до завтра', 'я студент', 'приятного аппетита']), answer: p1.tr },
+          makeAudioSpellingTask(v2.jp, v2.tr, pick(vocabBank, base + 4).jp, pick(vocabBank, base + 6).jp, pick(vocabBank, base + 7).jp),
+          { type: 'translate', q: `Повторение перевода: ${v2.jp}`, audio: v2.jp, options: mixedOptions(v2.tr, ['река', 'гора', 'дверь']), answer: v2.tr },
+          { type: 'boss', q: 'Контроль: выбери корректное предложение', audio: 'わたしは がくせいです', options: mixedOptions('わたしは がくせいです', ['わたし がくせい は', 'です わたし がくせい', 'わたし か がくせい']), answer: 'わたしは がくせいです' }
+        ]
+      };
+    };
+
+    const makeLessons = () => {
+      const lessons = [];
+      for (let day = 1; day <= 42; day++) lessons.push(day % 7 === 0 ? makeReviewLesson(day) : makeMainLesson(day));
+      return lessons;
+    };
+
+    const lessons = makeLessons();
+
+    function App() {
+      const [progress, setProgress] = useState(() => JSON.parse(localStorage.getItem('nq_progress') || '{}'));
+      const [stats, setStats] = useState(() => JSON.parse(localStorage.getItem('nq_stats') || '{"xp":0,"streak":0,"lastDate":""}'));
+      const [activeId, setActiveId] = useState(null);
+      const [attemptTasks, setAttemptTasks] = useState([]);
+      const [index, setIndex] = useState(0);
+      const [answers, setAnswers] = useState([]);
+      const [choice, setChoice] = useState('');
+      const [dropZone, setDropZone] = useState([]);
+      const [poolTiles, setPoolTiles] = useState([]);
+      const [result, setResult] = useState(null);
 
       useEffect(() => {
-        const manifest = {
-          name: "Nihongo App",
-          short_name: "Nihongo",
-          display: "standalone",
-          background_color: "#111827",
-          theme_color: "#1f2937",
-          icons: [{
-            src: "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23ef4444'/%3E%3Ctext x='50' y='65' font-size='40' text-anchor='middle' fill='white' font-family='sans-serif'%3Eあ%3C/text%3E%3C/svg%3E",
-            sizes: "192x192",
-            type: "image/svg+xml"
-          }]
-        };
-        
-        const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
-        const manifestUrl = URL.createObjectURL(manifestBlob);
-        let link = document.querySelector('link[rel="manifest"]');
-        if (!link) {
-          link = document.createElement('link');
-          link.rel = 'manifest';
-          document.head.appendChild(link);
-        }
-        link.href = manifestUrl;
+        localStorage.setItem('nq_progress', JSON.stringify(progress));
+        localStorage.setItem('nq_stats', JSON.stringify(stats));
+      }, [progress, stats]);
 
-        const swCode = `
-          self.addEventListener('install', (e) => self.skipWaiting());
-          self.addEventListener('activate', (e) => e.waitUntil(clients.claim()));
-          self.addEventListener('fetch', (e) => {
-            e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
-          });
-        `;
-        const swBlob = new Blob([swCode], {type: 'application/javascript'});
-        const swUrl = URL.createObjectURL(swBlob);
-        
-        if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
-          navigator.serviceWorker.register(swUrl).catch(() => {});
-        }
-
-        const savedLessons = localStorage.getItem('nihongo_lessons');
-        const savedSrs = localStorage.getItem('nihongo_srs');
-        if (savedLessons) setCompletedLessons(JSON.parse(savedLessons));
-        if (savedSrs) setSrsDeck(JSON.parse(savedSrs));
+      useEffect(() => {
+        if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
       }, []);
 
-      const saveProgress = (lessons, srs) => {
-        if (lessons) {
-          setCompletedLessons(lessons);
-          localStorage.setItem('nihongo_lessons', JSON.stringify(lessons));
-        }
-        if (srs) {
-          setSrsDeck(srs);
-          localStorage.setItem('nihongo_srs', JSON.stringify(srs));
-        }
-      };
+      const completedIds = Object.keys(progress).map(Number);
+      const maxCompleted = completedIds.length ? Math.max(...completedIds) : 0;
+      const unlockedUpTo = Math.min(42, maxCompleted + 1);
+      const activeLesson = useMemo(() => lessons.find((l) => l.id === activeId), [activeId]);
+      const currentTask = attemptTasks[index];
 
-      const playAudio = (text) => {
-        if (audioRef.current) audioRef.current.pause();
+      useEffect(() => {
+        if (!currentTask) return;
+        setChoice('');
+        if (currentTask.type === 'dragWord') {
+          setDropZone([]);
+          setPoolTiles(currentTask.tiles);
+        }
+      }, [index, currentTask]);
+
+      const speak = (text) => {
+        if (!window.speechSynthesis || !text) return;
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'ja-JP';
         window.speechSynthesis.cancel();
-
-        setIsPlaying(true);
-        const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=ja&client=tw-ob&q=${encodeURIComponent(text)}`;
-        const audio = new Audio(url);
-        audioRef.current = audio;
-        
-        audio.onended = () => setIsPlaying(false);
-        audio.onerror = () => {
-          const utterance = new SpeechSynthesisUtterance(text);
-          utterance.lang = 'ja-JP';
-          utterance.rate = 0.8;
-          utterance.onend = () => setIsPlaying(false);
-          window.speechSynthesis.speak(utterance);
-        };
-        audio.play().catch(() => setIsPlaying(false));
+        window.speechSynthesis.speak(u);
       };
 
-      const activeLesson = courseData.find(l => l.id === activeLessonId);
-
-      const addToSRS = (vocab) => {
-        const newCards = vocab.filter(v => !srsDeck.some(c => c.jp === v.jp)).map(v => ({
-          ...v, interval: 0, repetition: 0, efactor: 2.5, dueDate: 0 
-        }));
-        if (newCards.length > 0) saveProgress(null, [...srsDeck, ...newCards]);
+      const startLesson = (lesson) => {
+        if (lesson.id > unlockedUpTo) return;
+        setActiveId(lesson.id);
+        setAttemptTasks(lesson.tasks);
+        setIndex(0);
+        setAnswers([]);
+        setResult(null);
       };
 
-      const handleLessonComplete = () => {
-        if (!completedLessons.includes(activeLessonId)) {
-          saveProgress([...completedLessons, activeLessonId], null);
+      const saveAnswerAndNext = () => {
+        if (!currentTask) return;
+        const userAnswer = currentTask.type === 'dragWord' ? dropZone.join('') : choice;
+        setAnswers((prev) => [...prev, { task: currentTask, userAnswer }]);
+
+        if (index + 1 < attemptTasks.length) {
+          setIndex((i) => i + 1);
+          return;
         }
-        if (activeLesson.vocab) addToSRS(activeLesson.vocab);
+
+        const finalAnswers = [...answers, { task: currentTask, userAnswer }];
+        const wrong = finalAnswers.filter((x) => x.userAnswer !== x.task.answer);
+        const score = finalAnswers.length - wrong.length;
+        setResult({ score, total: finalAnswers.length, wrong, all: finalAnswers });
       };
 
-      const handleAnswer = (option, correctOption) => {
-        setSelectedAnswer(option);
-        setTimeout(() => {
-          if (option === correctOption) setScore(score + 1);
-          advanceQuiz(option === correctOption);
-        }, 1000);
+      const finishLesson = () => {
+        const today = new Date().toISOString().slice(0, 10);
+        const gain = 20 + Math.round((result.score / result.total) * 40);
+        setProgress((p) => ({ ...p, [activeId]: true }));
+        setStats((s) => ({ xp: s.xp + gain, streak: s.lastDate === today ? s.streak : s.streak + 1, lastDate: today }));
+        setActiveId(null);
+        setAttemptTasks([]);
+        setResult(null);
       };
 
-      const handleBuildWordClick = (word) => {
-        playAudio(word);
-        setBuildAnswer([...buildAnswer, word]);
+      const retakeWrong = () => {
+        const wrongTasks = result.wrong.map((x) => x.task);
+        setAttemptTasks(wrongTasks);
+        setIndex(0);
+        setAnswers([]);
+        setResult(null);
       };
 
-      const handleBuildWordRemove = (index) => {
-        playAudio(buildAnswer[index]);
-        setBuildAnswer(buildAnswer.filter((_, i) => i !== index));
+      const onDragStart = (e, tile) => e.dataTransfer.setData('text/plain', tile);
+      const moveToDrop = (e) => {
+        e.preventDefault();
+        const tile = e.dataTransfer.getData('text/plain');
+        const idx = poolTiles.indexOf(tile);
+        if (idx === -1) return;
+        const nextPool = [...poolTiles];
+        nextPool.splice(idx, 1);
+        setPoolTiles(nextPool);
+        setDropZone((d) => [...d, tile]);
+      };
+      const moveBack = (idx) => {
+        const next = [...dropZone];
+        const [tile] = next.splice(idx, 1);
+        setDropZone(next);
+        setPoolTiles((p) => [...p, tile]);
       };
 
-      const checkBuildAnswer = (correctArr) => {
-        const isCorrect = buildAnswer.join('') === correctArr.join('');
-        if (isCorrect) setScore(score + 1);
-        
-        const btns = document.querySelectorAll('.build-word');
-        btns.forEach(b => {
-          b.classList.add(isCorrect ? 'border-green-500' : 'border-red-500');
-          b.classList.add(isCorrect ? 'text-green-400' : 'text-red-400');
-        });
-
-        setTimeout(() => advanceQuiz(isCorrect), 1200);
-      };
-
-      const advanceQuiz = (lastWasCorrect) => {
-        if (currentQ < activeLesson.quiz.length - 1) {
-          setCurrentQ(currentQ + 1);
-          setSelectedAnswer(null);
-          setBuildAnswer([]);
-        } else {
-          setShowResult(true);
-          if ((score + (lastWasCorrect ? 1 : 0)) / activeLesson.quiz.length >= 0.8) {
-            handleLessonComplete();
-          }
-        }
-      };
-
-      const resetQuiz = () => {
-        setCurrentQ(0);
-        setScore(0);
-        setShowResult(false);
-        setSelectedAnswer(null);
-        setBuildAnswer([]);
-      };
-
-      const dueCards = srsDeck.filter(c => c.dueDate <= Date.now());
-
-      const startSrs = () => {
-        if (dueCards.length > 0) setupSrsCard(dueCards[0]);
-      };
-
-      const setupSrsCard = (card) => {
-        setCurrentSrsCard(card);
-        setSrsAnsweredState(null);
-        setSelectedSrsOption(null);
-        
-        const others = allVocabPool.filter(v => v.ru !== card.ru);
-        const shuffledOthers = [...others].sort(() => 0.5 - Math.random());
-        const options = [card, ...shuffledOthers.slice(0, 3)].sort(() => 0.5 - Math.random());
-        setSrsOptions(options);
-      };
-
-      const handleSrsOptionSelect = (opt) => {
-        if (srsAnsweredState !== null) return;
-        setSelectedSrsOption(opt);
-        
-        if (opt.ru === currentSrsCard.ru) {
-          setSrsAnsweredState('correct');
-          playAudio(currentSrsCard.jp);
-        } else {
-          setSrsAnsweredState('wrong');
-          playAudio(currentSrsCard.jp);
-          setTimeout(() => processSrsAnswer(1), 1500);
-        }
-      };
-
-      const processSrsAnswer = (quality) => {
-        const updatedCard = { ...currentSrsCard, ...calculateSRS(quality, currentSrsCard) };
-        const newDeck = srsDeck.map(c => c.jp === updatedCard.jp ? updatedCard : c);
-        saveProgress(null, newDeck);
-        
-        const remaining = newDeck.filter(c => c.dueDate <= Date.now());
-        if (remaining.length > 0) {
-          setupSrsCard(remaining[0]);
-        } else {
-          setCurrentSrsCard(null);
-        }
-      };
-
-      if (globalView === 'srs') {
+      if (!activeId) {
         return (
-          <div className="min-h-screen pb-24">
-            <header className="bg-gray-800 border-b border-gray-700 p-4 flex items-center shadow-md">
-              <button onClick={() => setGlobalView('lessons')} className="p-2 mr-2 bg-gray-700 rounded-full hover:bg-gray-600">
-                <Icon name="ArrowLeft" className="text-red-400" />
-              </button>
-              <h1 className="text-xl font-bold">Повторение</h1>
+          <main className="max-w-5xl mx-auto p-4 md:p-8 space-y-6">
+            <header className="glass rounded-2xl p-5 flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
+              <div>
+                <h1 className="text-2xl font-bold">Nihongo Quest (PWA)</h1>
+                <p className="text-slate-300">42 урока, открываются по очереди. Логика урока: сначала буквы и произношение, потом выбор написания по аудио, затем перевод.</p>
+              </div>
+              <div className="grid grid-cols-3 gap-3 text-sm">
+                <div className="glass rounded-xl px-3 py-2">XP<br/><b>{stats.xp}</b></div>
+                <div className="glass rounded-xl px-3 py-2">Серия<br/><b>{stats.streak}</b></div>
+                <div className="glass rounded-xl px-3 py-2">Открыто<br/><b>{unlockedUpTo}/42</b></div>
+              </div>
             </header>
 
-            <main className="max-w-md mx-auto p-4 mt-4 text-center">
-              {!currentSrsCard ? (
-                <div className="mt-20">
-                  <Icon name="Layers" size={64} className="mx-auto text-green-500 mb-4" />
-                  <h2 className="text-2xl font-bold mb-2">Все карточки повторены!</h2>
-                  <p className="text-gray-400 mb-6">Следующие появятся позже.</p>
-                  <button onClick={() => setGlobalView('lessons')} className="bg-red-600 text-white px-6 py-3 rounded-xl font-bold">
-                    Вернуться к урокам
-                  </button>
-                </div>
-              ) : (
-                <div className="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700 min-h-[400px] flex flex-col justify-center">
-                  <span className="text-sm text-gray-400 mb-2 block">Осталось: {dueCards.length}</span>
-                  <h2 className="text-6xl font-bold mb-4">{currentSrsCard.jp}</h2>
-                  <button onClick={() => playAudio(currentSrsCard.jp)} className="mx-auto text-gray-400 hover:text-red-400 mb-6 p-2">
-                    <Icon name="Volume2" size={32} />
-                  </button>
-
-                  {srsAnsweredState === null ? (
-                    <div className="grid gap-3 mt-auto">
-                      {srsOptions.map((opt, i) => (
-                        <button key={i} onClick={() => handleSrsOptionSelect(opt)} className="w-full bg-gray-700 text-gray-200 py-3 rounded-xl font-bold border-2 border-transparent hover:border-gray-500">
-                          {opt.ru}
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="animate-fade-in mt-auto">
-                      <div className="grid gap-3 mb-6">
-                        {srsOptions.map((opt, i) => {
-                          let btnClass = "w-full py-3 rounded-xl font-bold border-2 ";
-                          if (opt.ru === currentSrsCard.ru) {
-                            btnClass += "bg-green-900/50 border-green-500 text-green-300";
-                          } else if (opt.ru === selectedSrsOption.ru) {
-                            btnClass += "bg-red-900/50 border-red-500 text-red-300";
-                          } else {
-                            btnClass += "bg-gray-700 border-gray-600 text-gray-400 opacity-50";
-                          }
-                          return <button key={i} disabled className={btnClass}>{opt.ru}</button>;
-                        })}
+            <section className="space-y-3">
+              {lessons.map((lesson) => {
+                const locked = lesson.id > unlockedUpTo;
+                return (
+                  <button
+                    key={lesson.id}
+                    disabled={locked}
+                    onClick={() => startLesson(lesson)}
+                    className={`w-full text-left glass rounded-xl p-4 transition ${locked ? 'opacity-40 cursor-not-allowed' : 'hover:border-indigo-400'}`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs text-indigo-300">Юнит {lesson.unit} {lesson.isReview ? '• Повторение' : ''}</p>
+                        <h2 className="font-semibold">{lesson.title}</h2>
+                        <p className="text-sm text-slate-300">⏱ {lesson.durationMin} мин • {lesson.tasks.length} заданий</p>
                       </div>
-
-                      {srsAnsweredState === 'correct' && (
-                        <div className="grid grid-cols-3 gap-2">
-                          <button onClick={() => processSrsAnswer(3)} className="bg-orange-900/50 text-orange-300 py-3 rounded-lg font-bold text-sm">Трудно</button>
-                          <button onClick={() => processSrsAnswer(4)} className="bg-green-900/50 text-green-300 py-3 rounded-lg font-bold text-sm">Хорошо</button>
-                          <button onClick={() => processSrsAnswer(5)} className="bg-blue-900/50 text-blue-300 py-3 rounded-lg font-bold text-sm">Легко</button>
-                        </div>
-                      )}
+                      <div className="text-right text-sm">
+                        <p>{progress[lesson.id] ? '✅ Завершен' : locked ? '🔒 Закрыт' : '🟢 Доступен'}</p>
+                      </div>
                     </div>
-                  )}
+                  </button>
+                );
+              })}
+            </section>
+          </main>
+        );
+      }
+
+      if (result) {
+        return (
+          <main className="max-w-3xl mx-auto p-4 md:p-8 space-y-4">
+            <section className="glass rounded-2xl p-5 space-y-4">
+              <h2 className="text-2xl font-bold">Результат урока</h2>
+              <p>Верно: <b>{result.score}/{result.total}</b></p>
+              {result.wrong.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-amber-300">Ошибки (исправление только после урока):</p>
+                  {result.wrong.map((w, i) => (
+                    <div key={i} className="bg-slate-900 rounded p-3 text-sm">
+                      <p>{w.task.q}</p>
+                      <p className="text-slate-400">Ваш ответ: {w.userAnswer || '—'}</p>
+                      <p className="text-emerald-300">Правильный: {w.task.answer}</p>
+                    </div>
+                  ))}
+                  <button onClick={retakeWrong} className="bg-amber-600 hover:bg-amber-500 rounded px-4 py-2">Пересдать ошибки</button>
                 </div>
-              )}
-            </main>
-          </div>
-    
+              ) : <p className="text-emerald-300">Идеально! Можно перейти к следующему уроку.</p>}
+              <button onClick={finishLesson} className="bg-indigo-600 hover:bg-indigo-500 rounded px-4 py-2">Завершить урок</button>
+            </section>
+          </main>
+        );
+      }
+
+      return (
+        <main className="max-w-3xl mx-auto p-4 md:p-8 space-y-4">
+          <section className="glass rounded-2xl p-5 space-y-4">
+            <div className="flex justify-between text-sm text-slate-300">
+              <span>{activeLesson.title}</span>
+              <span>Задание {index + 1}/{attemptTasks.length}</span>
+            </div>
+            <h2 className="text-xl font-semibold">{currentTask.q}</h2>
+            <button onClick={() => speak(currentTask.audio || currentTask.answer)} className="bg-indigo-600 hover:bg-indigo-500 rounded px-3 py-2">🔊 Прослушать</button>
+
+            {currentTask.type === 'dragWord' ? (
+              <div className="space-y-3">
+                <div onDragOver={(e) => e.preventDefault()} onDrop={moveToDrop} className="min-h-16 rounded border border-dashed border-emerald-400 p-2 flex flex-wrap gap-2 bg-emerald-900/10">
+                  {dropZone.length === 0 ? <span className="text-slate-400">Перетащи буквы сюда</span> : null}
+                  {dropZone.map((tile, idx) => <button key={`${tile}-${idx}`} onClick={() => moveBack(idx)} className="bg-emerald-800/60 rounded px-3 py-1">{tile}</button>)}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {poolTiles.map((tile, idx) => (
+                    <div key={`${tile}-pool-${idx}`} draggable onDragStart={(e) => onDragStart(e, tile)} className="tile bg-slate-700 rounded px-3 py-1">{tile}</div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="grid gap-2">
+                {currentTask.options.map((o) => (
+                  <button key={o} onClick={() => setChoice(o)} className={`text-left px-3 py-2 rounded border ${choice === o ? 'border-emerald-400 bg-emerald-900/20' : 'border-slate-600 bg-slate-900'}`}>{o}</button>
+                ))}
+              </div>
+            )}
+
+            <button onClick={saveAnswerAndNext} className="bg-emerald-600 hover:bg-emerald-500 rounded px-4 py-2">Дальше</button>
+            <p className="text-xs text-slate-400">Проверка и разбор ошибок будут показаны после завершения урока.</p>
+          </section>
+        </main>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
