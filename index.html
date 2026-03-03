@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#101828" />
-  <meta name="description" content="Nihongo Quest — PWA-платформа для изучения японского языка с большим контентом и прогрессивным курсом." />
+  <meta name="description" content="Nihongo Quest — PWA-платформа для изучения японского языка с прогрессивной структурой уроков." />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icons/icon-192.svg" type="image/svg+xml" />
   <title>Nihongo Quest</title>
@@ -46,30 +46,17 @@
     ];
 
     const phraseBank = [
-      { jp:'おはようございます', tr:'доброе утро' },
-      { jp:'こんにちは', tr:'добрый день' },
-      { jp:'こんばんは', tr:'добрый вечер' },
-      { jp:'ありがとうございます', tr:'спасибо' },
-      { jp:'すみません', tr:'извините' },
-      { jp:'はじめまして', tr:'приятно познакомиться' },
-      { jp:'よろしくおねがいします', tr:'прошу о сотрудничестве' },
-      { jp:'いただきます', tr:'приятного аппетита (перед едой)' },
-      { jp:'ごちそうさまでした', tr:'спасибо за еду' },
-      { jp:'わかりません', tr:'я не понимаю' },
-      { jp:'だいじょうぶです', tr:'всё в порядке' },
+      { jp:'おはようございます', tr:'доброе утро' }, { jp:'こんにちは', tr:'добрый день' }, { jp:'こんばんは', tr:'добрый вечер' },
+      { jp:'ありがとうございます', tr:'спасибо' }, { jp:'すみません', tr:'извините' }, { jp:'はじめまして', tr:'приятно познакомиться' },
+      { jp:'よろしくおねがいします', tr:'прошу о сотрудничестве' }, { jp:'いただきます', tr:'приятного аппетита (перед едой)' },
+      { jp:'ごちそうさまでした', tr:'спасибо за еду' }, { jp:'わかりません', tr:'я не понимаю' }, { jp:'だいじょうぶです', tr:'всё в порядке' },
       { jp:'またあした', tr:'увидимся завтра' }
     ];
 
     const grammarBits = [
-      'は — частица темы: わたしは がくせいです。',
-      'です — вежливая связка в конце фразы.',
-      'か — вопросительная частица: ...ですか？',
-      'を — маркер прямого дополнения.',
-      'に — направление/время: えきに いきます。',
-      'で — место действия: がっこうで べんきょうします。',
-      'と — союз "и" для существительных.',
-      'の — принадлежность: わたしの ほん',
-      'も — тоже/также: わたしも がくせいです。'
+      'は — частица темы: わたしは がくせいです。', 'です — вежливая связка в конце фразы.', 'か — вопросительная частица: ...ですか？',
+      'を — маркер прямого дополнения.', 'に — направление/время: えきに いきます。', 'で — место действия: がっこうで べんきょうします。',
+      'と — союз "и" для существительных.', 'の — принадлежность: わたしの ほん', 'も — тоже/также: わたしも がくせいです。'
     ];
 
     const distractorsRu = ['вчера', 'машина', 'снег', 'море', 'суп', 'лес', 'река', 'гора', 'окно', 'дверь'];
@@ -78,40 +65,62 @@
     const pick = (arr, i) => arr[i % arr.length];
     const mixedOptions = (correct, filler) => [correct, ...filler].slice(0, 4).sort(() => Math.random() - 0.5);
 
+    const pickWordWithKana = (kanaChars, fallbackIndex) => {
+      const found = vocabBank.find((v, idx) => kanaChars.some((k) => v.jp.includes(k)) && idx >= (fallbackIndex % 8));
+      return found || pick(vocabBank, fallbackIndex);
+    };
+
     const makeWordBuildTask = (word, translation, i) => {
       const chars = word.split('');
-      const extras = [...kanaBank.map(x => x[0]).slice(i % 10, (i % 10) + 8)];
+      const extras = kanaBank.map((x) => x[0]).slice(i % 12, (i % 12) + 8);
       const tiles = [...chars, ...extras.slice(0, Math.max(3, Math.ceil(chars.length / 2)))].sort(() => Math.random() - 0.5);
       return { type: 'dragWord', q: `Собери слово (${translation}) перетаскиванием букв`, answer: word, audio: word, tiles };
     };
 
+    const makeAudioSpellingTask = (word, tr, alt1, alt2, alt3) => ({
+      type: 'audioSpell',
+      q: `Прослушай и выбери написание слова («${tr}»)`,
+      audio: word,
+      options: mixedOptions(word, [alt1, alt2, alt3]),
+      answer: word
+    });
+
     const makeMainLesson = (day) => {
       const k1 = pick(kanaBank, day - 1);
-      const k2 = pick(kanaBank, day + 8);
-      const v1 = pick(vocabBank, day - 1);
-      const v2 = pick(vocabBank, day + 7);
-      const p1 = pick(phraseBank, day - 1);
-      const p2 = pick(phraseBank, day + 4);
-      const g1 = pick(grammarBits, day - 1);
+      const k2 = pick(kanaBank, day + 3);
+      const k3 = pick(kanaBank, day + 8);
+      const studiedKana = [k1[0], k2[0], k3[0]];
+
+      const targetWord = pickWordWithKana(studiedKana, day);
+      const secondWord = pickWordWithKana([k2[0], k3[0]], day + 11);
+
+      const phrase1 = pick(phraseBank, day);
+      const phrase2 = pick(phraseBank, day + 4);
+      const grammar = pick(grammarBits, day);
+
+      const distractWords = [pick(vocabBank, day + 1).jp, pick(vocabBank, day + 2).jp, pick(vocabBank, day + 5).jp];
+      const distractWords2 = [pick(vocabBank, day + 6).jp, pick(vocabBank, day + 7).jp, pick(vocabBank, day + 9).jp];
 
       return {
         id: day,
         unit: Math.ceil(day / 7),
-        title: `День ${day}: ${v1.jp} + ${k1[0]}`,
+        title: `День ${day}: ${targetWord.jp} + ${k1[0]}${k2[0]}${k3[0]}`,
         isReview: false,
-        durationMin: 6,
+        durationMin: 7,
         tasks: [
-          { type: 'kana', q: `Как читается ${k1[0]}?`, audio: k1[0], options: mixedOptions(k1[1], ['to', 'na', 'mu']), answer: k1[1] },
-          { type: 'kanaPick', q: `Выбери символ для ${k2[1]}`, audio: k2[0], options: mixedOptions(k2[0], kanaDistractors.slice(day % 6, (day % 6) + 3)), answer: k2[0] },
-          { type: 'translate', q: `Переведи слово: ${v1.jp}`, audio: v1.jp, options: mixedOptions(v1.tr, distractorsRu.slice(day % 6, (day % 6) + 3)), answer: v1.tr },
-          { type: 'translate', q: `Переведи слово: ${v2.jp}`, audio: v2.jp, options: mixedOptions(v2.tr, distractorsRu.slice((day + 2) % 6, (day + 2) % 6 + 3)), answer: v2.tr },
-          { type: 'phrase', q: `Переведи фразу: ${p1.jp}`, audio: p1.jp, options: mixedOptions(p1.tr, ['приятного дня', 'не знаю', 'счастливо']), answer: p1.tr },
-          { type: 'grammar', q: 'Выбери верное правило', audio: g1, options: mixedOptions(g1, ['Глагол всегда в начале', 'Частиц в японском нет', 'です = прошедшее время']), answer: g1 },
-          makeWordBuildTask(v1.jp, v1.tr, day),
-          makeWordBuildTask(v2.jp, v2.tr, day + 2),
-          { type: 'phrase', q: `Переведи фразу: ${p2.jp}`, audio: p2.jp, options: mixedOptions(p2.tr, ['до скорого', 'доброй ночи', 'простите']), answer: p2.tr },
-          { type: 'translate', q: 'Переведи: みず', audio: 'みず', options: mixedOptions('вода', ['рис', 'хлеб', 'чай']), answer: 'вода' },
+          { type: 'kana', q: `Новая буква: как читается ${k1[0]}?`, audio: k1[0], options: mixedOptions(k1[1], ['to', 'na', 'mu']), answer: k1[1] },
+          { type: 'kana', q: `Новая буква: как читается ${k2[0]}?`, audio: k2[0], options: mixedOptions(k2[1], ['ra', 'yo', 'ne']), answer: k2[1] },
+          { type: 'phrase', q: `Фраза дня: ${phrase1.jp}`, audio: phrase1.jp, options: mixedOptions(phrase1.tr, ['до встречи', 'я устал', 'приятного дня']), answer: phrase1.tr },
+          { type: 'kanaPick', q: `Выбери символ для ${k3[1]}`, audio: k3[0], options: mixedOptions(k3[0], kanaDistractors.slice(day % 5, day % 5 + 3)), answer: k3[0] },
+          makeAudioSpellingTask(targetWord.jp, targetWord.tr, distractWords[0], distractWords[1], distractWords[2]),
+          { type: 'grammar', q: 'Грамматика: выбери верное правило', audio: grammar, options: mixedOptions(grammar, ['Глагол всегда в начале', 'Частиц в японском нет', 'です = прошедшее время']), answer: grammar },
+          makeWordBuildTask(secondWord.jp, secondWord.tr, day + 1),
           { type: 'sentence', q: 'Выбери правильное предложение', audio: 'わたしは がくせいです', options: mixedOptions('わたしは がくせいです', ['わたし がくせい は', 'です わたし がくせい', 'がくせい か わたし']), answer: 'わたしは がくせいです' },
+          makeAudioSpellingTask(secondWord.jp, secondWord.tr, distractWords2[0], distractWords2[1], distractWords2[2]),
+          { type: 'phrase', q: `Фраза дня: ${phrase2.jp}`, audio: phrase2.jp, options: mixedOptions(phrase2.tr, ['не понимаю', 'до завтра', 'доброй ночи']), answer: phrase2.tr },
+          { type: 'translate', q: `Теперь перевод: ${targetWord.jp}`, audio: targetWord.jp, options: mixedOptions(targetWord.tr, distractorsRu.slice(day % 6, day % 6 + 3)), answer: targetWord.tr },
+          { type: 'translate', q: `Теперь перевод: ${secondWord.jp}`, audio: secondWord.jp, options: mixedOptions(secondWord.tr, distractorsRu.slice((day + 2) % 6, ((day + 2) % 6) + 3)), answer: secondWord.tr },
+          makeWordBuildTask(targetWord.jp, targetWord.tr, day + 7),
           { type: 'boss', q: 'Босс-раунд: Я завтра иду в школу', audio: 'わたしは あした がっこうに いきます', options: mixedOptions('わたしは あした がっこうに いきます', ['あしたは わたし いきます に がっこう', 'がっこうを あした です', 'わたし がっこう か']), answer: 'わたしは あした がっこうに いきます' }
         ]
       };
@@ -123,19 +132,21 @@
       const v2 = pick(vocabBank, base + 5);
       const p1 = pick(phraseBank, base + 2);
       const k1 = pick(kanaBank, base + 1);
+
       return {
         id: day,
         unit: Math.ceil(day / 7),
         title: `День ${day}: Повторение юнита`,
         isReview: true,
-        durationMin: 7,
+        durationMin: 8,
         tasks: [
-          { type: 'translate', q: `Повторение: ${v1.jp}`, audio: v1.jp, options: mixedOptions(v1.tr, ['город', 'море', 'ночь']), answer: v1.tr },
-          { type: 'translate', q: `Повторение: ${v2.jp}`, audio: v2.jp, options: mixedOptions(v2.tr, ['лес', 'поле', 'облако']), answer: v2.tr },
-          { type: 'kana', q: `Повторение: как читается ${k1[0]}?`, audio: k1[0], options: mixedOptions(k1[1], ['re', 'yo', 'wa']), answer: k1[1] },
-          makeWordBuildTask(v1.jp, v1.tr, day + 10),
-          makeWordBuildTask(v2.jp, v2.tr, day + 11),
+          { type: 'kana', q: `Повторение буквы: как читается ${k1[0]}?`, audio: k1[0], options: mixedOptions(k1[1], ['re', 'yo', 'wa']), answer: k1[1] },
+          makeAudioSpellingTask(v1.jp, v1.tr, pick(vocabBank, base + 1).jp, pick(vocabBank, base + 2).jp, pick(vocabBank, base + 3).jp),
+          { type: 'translate', q: `Повторение перевода: ${v1.jp}`, audio: v1.jp, options: mixedOptions(v1.tr, ['город', 'море', 'ночь']), answer: v1.tr },
+          makeWordBuildTask(v2.jp, v2.tr, day + 10),
           { type: 'phrase', q: `Повторение фразы: ${p1.jp}`, audio: p1.jp, options: mixedOptions(p1.tr, ['до завтра', 'я студент', 'приятного аппетита']), answer: p1.tr },
+          makeAudioSpellingTask(v2.jp, v2.tr, pick(vocabBank, base + 4).jp, pick(vocabBank, base + 6).jp, pick(vocabBank, base + 7).jp),
+          { type: 'translate', q: `Повторение перевода: ${v2.jp}`, audio: v2.jp, options: mixedOptions(v2.tr, ['река', 'гора', 'дверь']), answer: v2.tr },
           { type: 'boss', q: 'Контроль: выбери корректное предложение', audio: 'わたしは がくせいです', options: mixedOptions('わたしは がくせいです', ['わたし がくせい は', 'です わたし がくせい', 'わたし か がくせい']), answer: 'わたしは がくせいです' }
         ]
       };
@@ -260,7 +271,7 @@
             <header className="glass rounded-2xl p-5 flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
               <div>
                 <h1 className="text-2xl font-bold">Nihongo Quest (PWA)</h1>
-                <p className="text-slate-300">42 урока, открываются по очереди. В каждом уроке много слов, фраз и букв + аудио в каждом задании.</p>
+                <p className="text-slate-300">42 урока, открываются по очереди. Логика урока: сначала буквы и произношение, потом выбор написания по аудио, затем перевод.</p>
               </div>
               <div className="grid grid-cols-3 gap-3 text-sm">
                 <div className="glass rounded-xl px-3 py-2">XP<br/><b>{stats.xp}</b></div>
