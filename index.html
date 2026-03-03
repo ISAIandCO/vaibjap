@@ -175,7 +175,7 @@
         (async () => {
           try {
             setFreqStatus('Загрузка top-10000 частотных слов...');
-            const r = await fetch('https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/ja/ja_50k.txt');
+            const r = await fetch('https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/ja/ja_full.txt');
             if (!r.ok) throw new Error('freq unavailable');
             const text = await r.text();
             const topWords = text.split('\n').map((line) => line.trim().split(' ')[0]).filter(Boolean).slice(0, 10000);
