@@ -174,37 +174,45 @@
       useEffect(() => {
         (async () => {
           try {
-            setFreqStatus('Загрузка слов из Wiktionary (1000 основных)...');
-            const url = 'https://ru.wiktionary.org/w/api.php?action=parse&page=Приложение:1000_основных_японских_слов&prop=wikitext&format=json&origin=*';
-            const r = await fetch(url);
-            if (!r.ok) throw new Error('wiktionary unavailable');
-            const data = await r.json();
-            const wikitext = data?.parse?.wikitext?.['*'] || '';
+            setFreqStatus('Загрузка слов из основного wikiwords.lst...');
+            const primaryUrl = 'https://raw.githubusercontent.com/ISAIandCO/vaibjap/refs/heads/main/wikiwords.lst';
+            let text = '';
+            try {
+              const rPrimary = await fetch(primaryUrl);
+              if (!rPrimary.ok) throw new Error('primary unavailable');
+              text = await rPrimary.text();
+            } catch {
+              const rLocal = await fetch('./wikiwords.lst');
+              if (!rLocal.ok) throw new Error('wikiwords.lst unavailable');
+              text = await rLocal.text();
+            }
 
-            const fromWiki = [];
-            const lines = wikitext.split('\n');
-            for (const line of lines) {
-              const m = line.match(/\{\{ja\|([^}]+)\}\}\s*[—-]\s*(.+)$/i);
-              if (!m) continue;
-              const jp = m[1].trim();
-              const tr = m[2].replace(/\{\{[^}]+\}\}/g, '').trim();
-              if (jp) fromWiki.push({ jp, tr: tr || 'перевод' });
+            const fromList = [];
+            const lines = text.split('\n');
+            for (const raw of lines) {
+              const line = raw.trim();
+              if (!line || line.startsWith('#')) continue;
+              const parts = line.split(/\t|\s+-\s+|\s+—\s+/).map((x) => x.trim()).filter(Boolean);
+              if (!parts.length) continue;
+              const jp = parts[0];
+              const tr = parts.slice(1).join(' — ') || 'слово из списка';
+              if (jp) fromList.push({ jp, tr });
             }
 
             const baseMap = Object.fromEntries(baseVocab.map((v) => [v.jp, v.tr]));
             const uniq = [];
             const seen = new Set();
-            for (const item of [...fromWiki, ...baseVocab]) {
+            for (const item of [...fromList, ...baseVocab]) {
               const jp = item.jp;
               if (!jp || seen.has(jp)) continue;
               seen.add(jp);
               uniq.push({ jp, tr: baseMap[jp] || item.tr || 'слово из списка' });
             }
-            if (!uniq.length) throw new Error('wiktionary parse failed');
+            if (!uniq.length) throw new Error('wikiwords list parse failed');
             setVocab(uniq);
-            setFreqStatus(`Подключен список Wiktionary: ${uniq.length} слов`);
+            setFreqStatus(`Подключен список wikiwords: ${uniq.length} слов`);
           } catch {
-            setFreqStatus('Не удалось загрузить внешний список, используется локальный словарь');
+            setFreqStatus('Не удалось загрузить wikiwords.lst, используется локальный словарь');
           }
         })();
       }, []);
