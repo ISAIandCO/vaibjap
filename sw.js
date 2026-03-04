@@ -1,5 +1,5 @@
 /* Nihongo Quest Service Worker (GitHub Pages friendly) */
-const VERSION = 'v3';
+const VERSION = 'v4';
 const APP_CACHE = `nq-app-${VERSION}`;
 const RUNTIME_CACHE = `nq-runtime-${VERSION}`;
 

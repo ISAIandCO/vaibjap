@@ -13,23 +13,139 @@
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
-    body { background: #0b1220; color: #e2e8f0; touch-action: manipulation; }
-    .glass { background: rgba(15,23,42,.8); border: 1px solid rgba(148,163,184,.2); }
+    :root{
+      --bg0:#050814;
+      --bg1:#0b1220;
+      --card:rgba(15,23,42,.78);
+      --stroke:rgba(148,163,184,.18);
+      --stroke2:rgba(99,102,241,.25);
+      --txt:#e2e8f0;
+      --muted:#94a3b8;
+      --accent:#7c3aed;
+      --accent2:#22c55e;
+      --warn:#f59e0b;
+    }
+
+    body {
+      background:
+        radial-gradient(1200px 800px at 20% 10%, rgba(124,58,237,.25), transparent 55%),
+        radial-gradient(900px 600px at 80% 20%, rgba(34,197,94,.18), transparent 55%),
+        radial-gradient(900px 600px at 60% 90%, rgba(59,130,246,.16), transparent 55%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      color: var(--txt);
+      touch-action: manipulation;
+      overflow-x: hidden;
+    }
+
+    .noise::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" stitchTiles="stitch"/></filter><rect width="120" height="120" filter="url(%23n)" opacity="0.15"/></svg>');
+      mix-blend-mode: overlay;
+      opacity:.35;
+    }
+
+    .glass {
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      box-shadow:
+        0 1px 0 rgba(255,255,255,.04) inset,
+        0 20px 60px rgba(0,0,0,.35);
+      backdrop-filter: blur(10px);
+    }
+
+    .glass-strong {
+      background: rgba(2,6,23,.65);
+      border: 1px solid rgba(99,102,241,.22);
+      box-shadow:
+        0 1px 0 rgba(255,255,255,.04) inset,
+        0 22px 70px rgba(0,0,0,.42);
+      backdrop-filter: blur(12px);
+    }
+
+    .ring-accent { box-shadow: 0 0 0 1px var(--stroke2) inset; }
     .tile { cursor: pointer; user-select: none; }
+    .soft { transition: transform .15s ease, border-color .15s ease, background .15s ease, opacity .15s ease; }
+    .soft:hover { transform: translateY(-1px); }
+
+    .gradient-btn {
+      background: linear-gradient(135deg, rgba(124,58,237,.95), rgba(59,130,246,.85));
+    }
+    .gradient-btn2 {
+      background: linear-gradient(135deg, rgba(34,197,94,.95), rgba(16,185,129,.8));
+    }
+    .gradient-warn {
+      background: linear-gradient(135deg, rgba(245,158,11,.95), rgba(249,115,22,.85));
+    }
+
+    .tab-active{
+      background: rgba(99,102,241,.12);
+      border-color: rgba(99,102,241,.55);
+    }
+
+    .kbd {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: .75rem;
+      padding: .1rem .35rem;
+      border-radius: .5rem;
+      border: 1px solid rgba(148,163,184,.25);
+      background: rgba(2,6,23,.5);
+      color: rgba(226,232,240,.9);
+    }
+
+    @media (prefers-reduced-motion: reduce){
+      .soft:hover { transform:none; }
+    }
   </style>
 </head>
-<body class="min-h-screen">
+<body class="min-h-screen noise">
   <div id="root"></div>
 
   <script type="text/babel">
     const { useEffect, useMemo, useRef, useState } = React;
 
+    // --- Data -----------------------------------------------------------------
+    // Базовый банк хираганы (в режиме "Кана" также используется таблица с группами)
     const kanaBank = [
-      ['あ','a'],['い','i'],['う','u'],['え','e'],['お','o'],['か','ka'],['き','ki'],['く','ku'],['け','ke'],['こ','ko'],
-      ['さ','sa'],['し','shi'],['す','su'],['せ','se'],['そ','so'],['た','ta'],['ち','chi'],['つ','tsu'],['て','te'],['と','to'],
-      ['な','na'],['に','ni'],['ぬ','nu'],['ね','ne'],['の','no'],['は','ha'],['ひ','hi'],['ふ','fu'],['へ','he'],['ほ','ho'],
-      ['ま','ma'],['み','mi'],['む','mu'],['め','me'],['も','mo'],['や','ya'],['ゆ','yu'],['よ','yo'],['ら','ra'],['り','ri'],
-      ['る','ru'],['れ','re'],['ろ','ro'],['わ','wa'],['を','wo'],['ん','n']
+      ['あ','a'],['い','i'],['う','u'],['え','e'],['お','o'],
+      ['か','ka'],['き','ki'],['く','ku'],['け','ke'],['こ','ko'],
+      ['さ','sa'],['し','shi'],['す','su'],['せ','se'],['そ','so'],
+      ['た','ta'],['ち','chi'],['つ','tsu'],['て','te'],['と','to'],
+      ['な','na'],['に','ni'],['ぬ','nu'],['ね','ne'],['の','no'],
+      ['は','ha'],['ひ','hi'],['ふ','fu'],['へ','he'],['ほ','ho'],
+      ['ま','ma'],['み','mi'],['む','mu'],['め','me'],['も','mo'],
+      ['や','ya'],['ゆ','yu'],['よ','yo'],
+      ['ら','ra'],['り','ri'],['る','ru'],['れ','re'],['ろ','ro'],
+      ['わ','wa'],['を','wo'],['ん','n']
+    ];
+
+    const kataMap = {
+      'あ':'ア','い':'イ','う':'ウ','え':'エ','お':'オ',
+      'か':'カ','き':'キ','く':'ク','け':'ケ','こ':'コ',
+      'さ':'サ','し':'シ','す':'ス','せ':'セ','そ':'ソ',
+      'た':'タ','ち':'チ','つ':'ツ','て':'テ','と':'ト',
+      'な':'ナ','に':'ニ','ぬ':'ヌ','ね':'ネ','の':'ノ',
+      'は':'ハ','ひ':'ヒ','ふ':'フ','へ':'ヘ','ほ':'ホ',
+      'ま':'マ','み':'ミ','む':'ム','め':'メ','も':'モ',
+      'や':'ヤ','ゆ':'ユ','よ':'ヨ',
+      'ら':'ラ','り':'リ','る':'ル','れ':'レ','ろ':'ロ',
+      'わ':'ワ','を':'ヲ','ん':'ン'
+    };
+
+    const gojuon = [
+      { row:'A', cells:[['あ','a'],['い','i'],['う','u'],['え','e'],['お','o']] },
+      { row:'K', cells:[['か','ka'],['き','ki'],['く','ku'],['け','ke'],['こ','ko']] },
+      { row:'S', cells:[['さ','sa'],['し','shi'],['す','su'],['せ','se'],['そ','so']] },
+      { row:'T', cells:[['た','ta'],['ち','chi'],['つ','tsu'],['て','te'],['と','to']] },
+      { row:'N', cells:[['な','na'],['に','ni'],['ぬ','nu'],['ね','ne'],['の','no']] },
+      { row:'H', cells:[['は','ha'],['ひ','hi'],['ふ','fu'],['へ','he'],['ほ','ho']] },
+      { row:'M', cells:[['ま','ma'],['み','mi'],['む','mu'],['め','me'],['も','mo']] },
+      { row:'Y', cells:[['や','ya'],['',''],['ゆ','yu'],['',''],['よ','yo']] },
+      { row:'R', cells:[['ら','ra'],['り','ri'],['る','ru'],['れ','re'],['ろ','ro']] },
+      { row:'W', cells:[['わ','wa'],['',''],['',''],['',''],['を','wo']] },
+      { row:'N', cells:[['ん','n'],['',''],['',''],['',''],['','']] }
     ];
 
     const baseVocab = [
@@ -60,8 +176,30 @@
 
     const distractRu = ['вчера','машина','снег','море','суп','лес','река'];
 
-    const pick = (arr, i) => arr[i % arr.length];
-    const mixed = (correct, wrong) => [correct, ...wrong].slice(0, 4).sort(() => Math.random() - 0.5);
+    // --- Helpers --------------------------------------------------------------
+    const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+    const pick = (arr, i) => arr[(Math.abs(i) || 0) % arr.length];
+    const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
+    const uniqBy = (arr, keyFn) => {
+      const out = []; const seen = new Set();
+      for (const x of arr) {
+        const k = keyFn(x);
+        if (seen.has(k)) continue;
+        seen.add(k);
+        out.push(x);
+      }
+      return out;
+    };
+    const mixed = (correct, wrong) => shuffle([correct, ...wrong].slice(0, 4));
+    const isoDate = (d = new Date()) => new Date(d).toISOString().slice(0, 10);
+    const ts = (d = new Date()) => +new Date(d);
+    const fmtShort = (iso) => {
+      if (!iso) return '—';
+      try {
+        const d = new Date(iso);
+        return d.toLocaleDateString('ru-RU', { day:'2-digit', month:'2-digit' });
+      } catch { return iso; }
+    }
 
     const teachWordTask = (w) => ({ type: 'teachWord', q: `Новое слово: ${w.jp} — ${w.tr}`, audio: w.jp, answer: w.jp, payload: w });
     const teachGrammarTask = (g) => ({ type: 'teachGrammar', q: `Грамматика: ${g.rule}`, audio: g.sentence, answer: g.rule, payload: g });
@@ -146,11 +284,67 @@
       return list;
     }
 
+    // --- SRS (простая SM-2) ---------------------------------------------------
+    // Хранится как map: jp -> card
+    // card: { jp, tr, ef, interval, reps, due, lapses, addedAt, lastReviewed, lastGrade }
+    function newCard(w) {
+      return {
+        jp: w.jp,
+        tr: w.tr,
+        ef: 2.5,
+        interval: 0,
+        reps: 0,
+        due: ts(),
+        lapses: 0,
+        addedAt: ts(),
+        lastReviewed: 0,
+        lastGrade: null
+      };
+    }
+
+    function sm2(card, grade) {
+      // grade: 0..5
+      let ef = card.ef;
+      let reps = card.reps;
+      let interval = card.interval;
+      let lapses = card.lapses;
+
+      if (grade < 3) {
+        reps = 0;
+        interval = 1;
+        lapses += 1;
+      } else {
+        reps += 1;
+        if (reps === 1) interval = 1;
+        else if (reps === 2) interval = 6;
+        else interval = Math.round(interval * ef);
+      }
+
+      // SM-2 EF update
+      ef = ef + (0.1 - (5 - grade) * (0.08 + (5 - grade) * 0.02));
+      ef = clamp(ef, 1.3, 2.8);
+
+      // due in ms
+      const due = ts() + interval * 24 * 60 * 60 * 1000;
+      return {
+        ...card,
+        ef,
+        reps,
+        interval,
+        lapses,
+        due,
+        lastReviewed: ts(),
+        lastGrade: grade
+      };
+    }
+
     function App() {
+      const [view, setView] = useState(() => localStorage.getItem('nq_view') || 'learn');
       const [vocab, setVocab] = useState(baseVocab);
       const [freqStatus, setFreqStatus] = useState('Загружен базовый словарь');
       const [progress, setProgress] = useState(() => JSON.parse(localStorage.getItem('nq_progress') || '{}'));
       const [stats, setStats] = useState(() => JSON.parse(localStorage.getItem('nq_stats') || '{"xp":0,"streak":0,"lastDate":""}'));
+      const [goal, setGoal] = useState(() => JSON.parse(localStorage.getItem('nq_goal') || '{"dailyMinutes":10,"dailyReviews":20}'));
       const [activeId, setActiveId] = useState(null);
       const [attemptTasks, setAttemptTasks] = useState([]);
       const [index, setIndex] = useState(0);
@@ -161,12 +355,41 @@
       const [result, setResult] = useState(null);
       const [swWaiting, setSwWaiting] = useState(false);
       const [speakHint, setSpeakHint] = useState('');
+      const [toast, setToast] = useState(null);
+      const [srs, setSrs] = useState(() => JSON.parse(localStorage.getItem('nq_srs') || '{}'));
+      const [kanaMode, setKanaMode] = useState(() => JSON.parse(localStorage.getItem('nq_kanaMode') || '{"script":"hira","quiz":"kana2roma"}'));
+      const [kanaQuiz, setKanaQuiz] = useState(null);
+      const [vocabQuery, setVocabQuery] = useState('');
+      const [customJp, setCustomJp] = useState('');
+      const [customTr, setCustomTr] = useState('');
+      const [reviewSession, setReviewSession] = useState(null); // { queue:[jp], idx, choices, correct }
+      const [reviewChoice, setReviewChoice] = useState('');
       const lastSpokenRef = useRef({ text: '', time: 0 });
 
       useEffect(() => {
         localStorage.setItem('nq_progress', JSON.stringify(progress));
         localStorage.setItem('nq_stats', JSON.stringify(stats));
+        localStorage.setItem('nq_srs', JSON.stringify(srs));
+        localStorage.setItem('nq_goal', JSON.stringify(goal));
+        localStorage.setItem('nq_kanaMode', JSON.stringify(kanaMode));
+        localStorage.setItem('nq_view', view);
       }, [progress, stats]);
+
+      useEffect(() => {
+        localStorage.setItem('nq_srs', JSON.stringify(srs));
+      }, [srs]);
+
+      useEffect(() => {
+        localStorage.setItem('nq_goal', JSON.stringify(goal));
+      }, [goal]);
+
+      useEffect(() => {
+        localStorage.setItem('nq_kanaMode', JSON.stringify(kanaMode));
+      }, [kanaMode]);
+
+      useEffect(() => {
+        localStorage.setItem('nq_view', view);
+      }, [view]);
 
       useEffect(() => {
         if (!('serviceWorker' in navigator)) return;
@@ -255,6 +478,24 @@
       const activeLesson = useMemo(() => lessons.find((l) => l.id === activeId), [lessons, activeId]);
       const currentTask = attemptTasks[index];
 
+      const dueCards = useMemo(() => {
+        const now = ts();
+        return Object.values(srs).filter((c) => (c?.due || 0) <= now).sort((a,b) => (a.due||0) - (b.due||0));
+      }, [srs]);
+
+      const masteredCount = useMemo(() => Object.values(srs).filter((c) => (c.reps || 0) >= 5 && (c.lapses || 0) === 0).length, [srs]);
+
+      const todayIso = isoDate();
+      const dailyProgress = useMemo(() => {
+        // Очень простой трекер: если были ревью сегодня — считаем их. Логи не храним, поэтому приблизительно.
+        // Можно улучшить позже, но для статического сайта достаточно.
+        const reviewedToday = Object.values(srs).filter((c) => c.lastReviewed && isoDate(c.lastReviewed) === todayIso).length;
+        return {
+          lessonsDone: completed.filter((d) => d && progress[d] && progress[d] === true).length,
+          reviewedToday,
+        };
+      }, [srs, todayIso, completed, progress]);
+
       useEffect(() => {
         if (!currentTask) return;
         setChoice('');
@@ -262,6 +503,12 @@
         if (currentTask.type === 'dragWord') {
           setDropZone([]);
           setPoolTiles(currentTask.tiles);
+        }
+
+        // Автодобавление слова в SRS при изучении
+        if (currentTask.type === 'teachWord' && currentTask.payload?.jp) {
+          const w = currentTask.payload;
+          setSrs((m) => m[w.jp] ? m : ({ ...m, [w.jp]: newCard(w) }));
         }
       }, [index, currentTask]);
 
@@ -278,6 +525,12 @@
         window.speechSynthesis.speak(u);
       };
 
+      const toastMsg = (msg) => {
+        setToast(msg);
+        window.clearTimeout(toastMsg._t);
+        toastMsg._t = window.setTimeout(() => setToast(null), 2200);
+      };
+
       const startLesson = (lesson) => {
         if (lesson.id > unlockedUpTo) return;
         setActiveId(lesson.id);
@@ -285,6 +538,7 @@
         setIndex(0);
         setAnswers([]);
         setResult(null);
+        setView('learn');
       };
 
       const saveAnswerAndNext = () => {
@@ -310,6 +564,7 @@
         setProgress((p) => ({ ...p, [activeId]: true }));
         setStats((s) => ({ xp: s.xp + gain, streak: s.lastDate === today ? s.streak : s.streak + 1, lastDate: today }));
         setActiveId(null); setAttemptTasks([]); setResult(null);
+        toastMsg(`+${gain} XP`);
       };
 
       const moveTileToDropZone = (tile, idx) => {
@@ -334,73 +589,927 @@
         setIndex(0); setAnswers([]); setResult(null);
       };
 
-      if (!activeId) {
-        return <main className="max-w-5xl mx-auto p-4 md:p-8 space-y-6">
-          <header className="glass rounded-2xl p-5 flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
-            <div><h1 className="text-2xl font-bold">Nihongo Quest (PWA)</h1><p className="text-slate-300">{freqStatus}</p></div>
-            <div className="grid grid-cols-3 gap-3 text-sm">
-              <div className="glass rounded-xl px-3 py-2">XP<br/><b>{stats.xp}</b></div>
-              <div className="glass rounded-xl px-3 py-2">Серия<br/><b>{stats.streak}</b></div>
-              <div className="glass rounded-xl px-3 py-2">Открыто<br/><b>{unlockedUpTo}/42</b></div>
+      // --- Review (SRS) -------------------------------------------------------
+      const startReview = (count = goal.dailyReviews || 20) => {
+        const due = dueCards.slice(0, clamp(count, 5, 60));
+        if (!due.length) {
+          toastMsg('На сегодня всё повторено');
+          return;
+        }
+        const queue = due.map((c) => c.jp);
+        setReviewSession({ queue, idx: 0, correct: 0, total: queue.length });
+        setReviewChoice('');
+        setView('review');
+      };
+
+      const currentReviewCard = useMemo(() => {
+        if (!reviewSession) return null;
+        const jp = reviewSession.queue[reviewSession.idx];
+        return jp ? srs[jp] : null;
+      }, [reviewSession, srs]);
+
+      const reviewOptions = useMemo(() => {
+        if (!currentReviewCard) return [];
+        const correct = currentReviewCard.tr;
+        const wrong = shuffle(vocab.filter((v) => v.tr && v.tr !== correct)).slice(0, 3).map((v) => v.tr);
+        return mixed(correct, wrong);
+      }, [currentReviewCard, vocab]);
+
+      const gradeReview = (isCorrect) => {
+        if (!currentReviewCard || !reviewSession) return;
+        const grade = isCorrect ? 4 : 2; // Good vs Again
+        setSrs((m) => ({ ...m, [currentReviewCard.jp]: sm2(m[currentReviewCard.jp], grade) }));
+
+        const nextIdx = reviewSession.idx + 1;
+        const nextCorrect = reviewSession.correct + (isCorrect ? 1 : 0);
+        if (nextIdx >= reviewSession.queue.length) {
+          // reward
+          const gain = 5 * reviewSession.queue.length + (isCorrect ? 2 : 0);
+          setStats((s) => ({ ...s, xp: s.xp + gain }));
+          toastMsg(`Повторение завершено • +${gain} XP`);
+          setReviewSession(null);
+          setReviewChoice('');
+          return;
+        }
+        setReviewSession({ ...reviewSession, idx: nextIdx, correct: nextCorrect });
+        setReviewChoice('');
+      };
+
+      const addToDeck = (w) => {
+        if (!w?.jp) return;
+        setSrs((m) => m[w.jp] ? m : ({ ...m, [w.jp]: newCard(w) }));
+        toastMsg(`Добавлено в колоду: ${w.jp}`);
+      };
+
+      const removeFromDeck = (jp) => {
+        setSrs((m) => {
+          const n = { ...m };
+          delete n[jp];
+          return n;
+        });
+        toastMsg('Удалено из колоды');
+      };
+
+      const startKanaQuiz = () => {
+        const item = pick(kanaBank, Math.floor(Math.random() * 9999));
+        const [hira, roma] = item;
+        const script = kanaMode.script;
+        const question = kanaMode.quiz === 'kana2roma'
+          ? { prompt: script === 'hira' ? hira : (kataMap[hira] || hira), answer: roma, kind:'kana2roma' }
+          : { prompt: roma, answer: script === 'hira' ? hira : (kataMap[hira] || hira), kind:'roma2kana' };
+
+        const wrong = shuffle(kanaBank.filter((k) => k[1] !== roma)).slice(0, 3);
+        const options = kanaMode.quiz === 'kana2roma'
+          ? mixed(roma, wrong.map((x) => x[1]))
+          : mixed(question.answer, wrong.map((x) => script === 'hira' ? x[0] : (kataMap[x[0]] || x[0])));
+        setKanaQuiz({ ...question, options, picked: '' });
+      };
+
+      const submitKanaQuiz = () => {
+        if (!kanaQuiz?.picked) return;
+        const ok = kanaQuiz.picked === kanaQuiz.answer;
+        setStats((s) => ({ ...s, xp: s.xp + (ok ? 3 : 0) }));
+        toastMsg(ok ? '+3 XP' : 'Промах — попробуй ещё');
+        startKanaQuiz();
+      };
+
+      const exportBackup = () => {
+        const payload = {
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          progress,
+          stats,
+          goal,
+          srs,
+          custom: vocab.filter((v) => v._custom)
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `nihongo-quest-backup-${isoDate()}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      };
+
+      const importBackup = async (file) => {
+        try {
+          const text = await file.text();
+          const data = JSON.parse(text);
+          if (!data || typeof data !== 'object') throw new Error('bad');
+          if (data.progress) setProgress(data.progress);
+          if (data.stats) setStats(data.stats);
+          if (data.goal) setGoal(data.goal);
+          if (data.srs) setSrs(data.srs);
+          if (Array.isArray(data.custom) && data.custom.length) {
+            setVocab((v) => uniqBy([...data.custom, ...v], (x) => x.jp));
+          }
+          toastMsg('Импорт выполнен');
+        } catch {
+          toastMsg('Не удалось импортировать');
+        }
+      };
+
+      const resetAll = () => {
+        if (!confirm('Сбросить прогресс, статистику и колоду?')) return;
+        localStorage.removeItem('nq_progress');
+        localStorage.removeItem('nq_stats');
+        localStorage.removeItem('nq_srs');
+        setProgress({});
+        setStats({ xp:0, streak:0, lastDate:'' });
+        setSrs({});
+        setActiveId(null);
+        setAttemptTasks([]);
+        setResult(null);
+        toastMsg('Сброшено');
+      };
+
+      // --- UI pieces ----------------------------------------------------------
+      const Nav = () => {
+        const tabs = [
+          { id:'learn', label:'Уроки' },
+          { id:'review', label:'Повторение', badge: dueCards.length ? dueCards.length : null },
+          { id:'kana', label:'Кана' },
+          { id:'vocab', label:'Словарь' },
+          { id:'grammar', label:'Грамматика' },
+          { id:'settings', label:'Настройки' },
+        ];
+
+        return (
+          <header className="glass-strong rounded-3xl p-4 md:p-5 flex flex-col gap-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl gradient-btn grid place-items-center shadow-lg">
+                    <span className="font-black">日</span>
+                  </div>
+                  <div>
+                    <h1 className="text-2xl font-bold tracking-tight">Nihongo Quest</h1>
+                    <p className="text-slate-300 text-sm">{freqStatus}</p>
+                  </div>
+                </div>
+                <div className="text-xs text-slate-400">
+                  Совет: повторение — это сила. Для быстрого старта нажми <span className="kbd">Повторение</span>.
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 gap-2 text-sm">
+                <div className="glass rounded-2xl px-3 py-2 ring-accent">
+                  XP<br/><b className="text-base">{stats.xp}</b>
+                </div>
+                <div className="glass rounded-2xl px-3 py-2">
+                  Серия<br/><b className="text-base">{stats.streak}</b>
+                </div>
+                <div className="glass rounded-2xl px-3 py-2">
+                  Уроки<br/><b className="text-base">{unlockedUpTo}/42</b>
+                </div>
+                <div className="glass rounded-2xl px-3 py-2">
+                  В колоде<br/><b className="text-base">{Object.keys(srs).length}</b>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {tabs.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => {
+                    setActiveId(null);
+                    setAttemptTasks([]);
+                    setResult(null);
+                    setView(t.id);
+                    if (t.id === 'kana' && !kanaQuiz) startKanaQuiz();
+                    if (t.id === 'review' && !reviewSession && dueCards.length) startReview();
+                  }}
+                  className={`soft px-3 py-2 rounded-2xl border text-sm ${view===t.id ? 'tab-active' : 'border-slate-700/70 bg-slate-950/40'} flex items-center gap-2`}
+                >
+                  <span>{t.label}</span>
+                  {t.badge ? <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-400/40">{t.badge}</span> : null}
+                </button>
+              ))}
+              <div className="flex-1" />
+              <button onClick={() => startReview()} className="soft px-3 py-2 rounded-2xl gradient-btn2 text-sm font-semibold">Быстрое повторение</button>
             </div>
           </header>
-          {swWaiting && <div className="glass rounded-2xl p-4 flex items-center justify-between gap-3">
+        )
+      };
+
+      const Toast = () => {
+        if (!toast) return null;
+        return (
+          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
+            <div className="glass rounded-2xl px-4 py-2 text-sm border border-slate-700/60">{toast}</div>
+          </div>
+        );
+      };
+
+      const Shell = ({ children }) => (
+        <main className="max-w-6xl mx-auto p-4 md:p-8 space-y-6">
+          <Nav />
+          {swWaiting && <div className="glass rounded-3xl p-4 flex items-center justify-between gap-3">
             <div className="text-sm"><b>Доступно обновление</b><div className="text-slate-300">Нажмите «Обновить», чтобы применить последнюю версию.</div></div>
-            <button onClick={applyUpdate} className="bg-emerald-600 rounded px-4 py-2">Обновить</button>
+            <button onClick={applyUpdate} className="soft gradient-btn2 rounded-2xl px-4 py-2 font-semibold">Обновить</button>
           </div>}
-          <section className="space-y-3">
-            {lessons.map((lesson) => {
-              const locked = lesson.id > unlockedUpTo;
-              return <button key={lesson.id} disabled={locked} onClick={() => startLesson(lesson)} className={`w-full text-left glass rounded-xl p-4 ${locked ? 'opacity-40 cursor-not-allowed' : 'hover:border-indigo-400'}`}>
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs text-indigo-300">Юнит {lesson.unit} {lesson.isReview ? '• Повторение' : ''}</p>
-                    <h2 className="font-semibold">{lesson.title}</h2>
-                    <p className="text-sm text-slate-300">⏱ {lesson.durationMin} мин • {lesson.tasks.length} заданий</p>
-                  </div>
-                  <div className="text-right text-sm">{progress[lesson.id] ? '✅ Завершен' : locked ? '🔒 Закрыт' : '🟢 Доступен'}</div>
-                </div>
-              </button>
-            })}
-          </section>
+          {children}
+          <Toast />
         </main>
-      }
+      );
 
       if (result) {
-        return <main className="max-w-3xl mx-auto p-4 md:p-8 space-y-4"><section className="glass rounded-2xl p-5 space-y-4">
-          <h2 className="text-2xl font-bold">Результат урока</h2>
-          <p>Верно: <b>{result.score}/{result.total}</b></p>
-          {result.wrong.length > 0 && <div className="space-y-2">
-            <p className="text-amber-300">Ошибки:</p>
-            {result.wrong.map((w, i) => <div key={i} className="bg-slate-900 rounded p-3 text-sm space-y-1"><p>{w.task.q}</p><p className="text-slate-400">Ваш ответ: {w.userAnswer || '—'}</p><p className="text-emerald-300">Правильный: {w.task.answer}</p>{w.task.explain && <p className="text-slate-300">Подсказка: {w.task.explain}</p>}</div>)}
-            <button onClick={retakeWrong} className="bg-amber-600 rounded px-4 py-2">Пересдать ошибки</button>
-          </div>}
-          <button onClick={finishLesson} className="bg-indigo-600 rounded px-4 py-2">Завершить урок</button>
-        </section></main>
+        return (
+          <Shell>
+            <section className="max-w-3xl mx-auto glass rounded-3xl p-5 md:p-6 space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold">Результат урока</h2>
+                  <p className="text-slate-300">{activeLesson?.title}</p>
+                </div>
+                <div className="glass rounded-2xl px-3 py-2 text-sm">
+                  Верно<br/>
+                  <b className="text-lg">{result.score}/{result.total}</b>
+                </div>
+              </div>
+
+              {result.wrong.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-amber-300 font-semibold">Ошибки</p>
+                  {result.wrong.map((w, i) => (
+                    <div key={i} className="glass rounded-2xl p-3 text-sm space-y-1 border border-slate-700/70">
+                      <p className="text-slate-200">{w.task.q}</p>
+                      <p className="text-slate-400">Ваш ответ: <span className="text-slate-200">{w.userAnswer || '—'}</span></p>
+                      <p className="text-emerald-300">Правильный: <span className="text-emerald-200">{w.task.answer}</span></p>
+                      {w.task.explain && <p className="text-slate-300">Подсказка: {w.task.explain}</p>}
+                    </div>
+                  ))}
+                  <button onClick={retakeWrong} className="soft gradient-warn rounded-2xl px-4 py-2 font-semibold">Пересдать ошибки</button>
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                <button onClick={finishLesson} className="soft gradient-btn2 rounded-2xl px-4 py-2 font-semibold">Завершить урок</button>
+                <button onClick={() => { setResult(null); setActiveId(null); setAttemptTasks([]); setView('review'); startReview(); }} className="soft px-4 py-2 rounded-2xl border border-slate-700/70 bg-slate-950/40">Перейти к повторению</button>
+              </div>
+            </section>
+          </Shell>
+        )
       }
 
-      const isTeach = ['teachWord','teachGrammar'].includes(currentTask.type);
-      return <main className="max-w-3xl mx-auto p-4 md:p-8 space-y-4"><section className="glass rounded-2xl p-5 space-y-4">
-        <div className="flex justify-between text-sm text-slate-300"><span>{activeLesson.title}</span><span>Задание {index+1}/{attemptTasks.length}</span></div>
-        <h2 className="text-xl font-semibold">{currentTask.q}</h2>
-        <button onClick={() => speak(currentTask.audio || currentTask.answer)} className="bg-indigo-600 rounded px-3 py-2">🔊 Прослушать</button>
-        {speakHint && <p className="text-xs text-indigo-300">{speakHint}</p>}
+      const isTeach = activeId && currentTask ? ['teachWord','teachGrammar'].includes(currentTask.type) : false;
 
-        {isTeach ? <div className="space-y-2 bg-slate-900 rounded p-3 text-slate-300">
-          {currentTask.type === 'teachGrammar' && <><p><b>Правило:</b> {currentTask.payload.rule}</p><p><b>Пример:</b> {currentTask.payload.sentence}</p><p><b>Объяснение:</b> {currentTask.payload.explain}</p></>}
-          {currentTask.type === 'teachWord' && <p>Запомни слово и перевод, затем будут задания на написание и перевод.</p>}
-        </div> : currentTask.type === 'dragWord' ? <div className="space-y-3">
-          <div className="min-h-16 rounded border border-dashed border-emerald-400 p-2 flex flex-wrap gap-2 bg-emerald-900/10">
-            {dropZone.length === 0 ? <span className="text-slate-400">Нажми на буквы ниже, чтобы собрать слово</span> : null}
-            {dropZone.map((t, idx) => <button key={`${t}-${idx}`} onClick={() => moveTileToPool(t, idx)} className="tile bg-emerald-800/60 rounded px-3 py-1">{t}</button>)}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {poolTiles.map((t, idx) => <button key={`${t}-${idx}`} onClick={() => moveTileToDropZone(t, idx)} className="tile bg-slate-700 rounded px-3 py-1">{t}</button>)}
-          </div>
-        </div> : <div className="grid gap-2">{currentTask.options.map((o)=><button key={o} onClick={()=>setChoice(o)} className={`text-left px-3 py-2 rounded border ${choice===o?'border-emerald-400 bg-emerald-900/20':'border-slate-600 bg-slate-900'}`}>{o}</button>)}</div>}
+      // --- Lesson running screen ---------------------------------------------
+      if (activeId && currentTask) {
+        return (
+          <Shell>
+            <section className="max-w-3xl mx-auto glass rounded-3xl p-5 md:p-6 space-y-4">
+              <div className="flex flex-wrap justify-between items-center gap-2 text-sm text-slate-300">
+                <span>{activeLesson?.title}</span>
+                <span className="glass rounded-2xl px-3 py-1 border border-slate-700/60">Задание {index+1}/{attemptTasks.length}</span>
+              </div>
 
-        <button onClick={saveAnswerAndNext} disabled={!isTeach && (currentTask.type === 'dragWord' ? (dropZone.join('').length !== (currentTask.answer || '').length) : !choice)} className={`rounded px-4 py-2 ${(!isTeach && (currentTask.type === 'dragWord' ? (dropZone.join('').length !== (currentTask.answer || '').length) : !choice)) ? 'bg-slate-600 cursor-not-allowed' : 'bg-emerald-600'}`}>Дальше</button>
-      </section></main>
+              <h2 className="text-xl md:text-2xl font-semibold">{currentTask.q}</h2>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button onClick={() => speak(currentTask.audio || currentTask.answer)} className="soft gradient-btn rounded-2xl px-4 py-2 font-semibold">🔊 Прослушать</button>
+                {currentTask.type === 'teachWord' && currentTask.payload?.jp && (
+                  <button onClick={() => addToDeck(currentTask.payload)} className="soft px-4 py-2 rounded-2xl border border-slate-700/70 bg-slate-950/40">В колоду</button>
+                )}
+                {speakHint && <span className="text-xs text-indigo-300">{speakHint}</span>}
+              </div>
+
+              {isTeach ? (
+                <div className="space-y-2 glass rounded-2xl p-4 border border-slate-700/70">
+                  {currentTask.type === 'teachGrammar' && (
+                    <>
+                      <p><b>Правило:</b> {currentTask.payload.rule}</p>
+                      <p><b>Пример:</b> <span className="text-slate-200">{currentTask.payload.sentence}</span></p>
+                      <p className="text-slate-300"><b>Объяснение:</b> {currentTask.payload.explain}</p>
+                    </>
+                  )}
+                  {currentTask.type === 'teachWord' && (
+                    <>
+                      <p className="text-slate-300">Запомни слово и перевод. Дальше будут задания на написание и перевод.</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="glass rounded-2xl p-3 border border-slate-700/60">
+                          <div className="text-xs text-slate-400">Японский</div>
+                          <div className="text-2xl font-bold">{currentTask.payload.jp}</div>
+                        </div>
+                        <div className="glass rounded-2xl p-3 border border-slate-700/60">
+                          <div className="text-xs text-slate-400">Перевод</div>
+                          <div className="text-lg font-semibold">{currentTask.payload.tr}</div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : currentTask.type === 'dragWord' ? (
+                <div className="space-y-3">
+                  <div className="min-h-16 rounded-2xl border border-dashed border-emerald-400/70 p-3 flex flex-wrap gap-2 bg-emerald-900/10">
+                    {dropZone.length === 0 ? <span className="text-slate-400">Нажми на буквы ниже, чтобы собрать слово</span> : null}
+                    {dropZone.map((t, idx) => (
+                      <button key={`${t}-${idx}`} onClick={() => moveTileToPool(t, idx)} className="tile soft bg-emerald-800/60 rounded-2xl px-3 py-1">
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {poolTiles.map((t, idx) => (
+                      <button key={`${t}-${idx}`} onClick={() => moveTileToDropZone(t, idx)} className="tile soft bg-slate-800/70 rounded-2xl px-3 py-1 border border-slate-700/60">
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="grid gap-2">
+                  {currentTask.options.map((o) => (
+                    <button
+                      key={o}
+                      onClick={() => setChoice(o)}
+                      className={`soft text-left px-4 py-3 rounded-2xl border ${choice===o ? 'border-emerald-400/70 bg-emerald-900/20' : 'border-slate-700/70 bg-slate-950/40'}`}
+                    >
+                      {o}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={saveAnswerAndNext}
+                  disabled={!isTeach && (currentTask.type === 'dragWord' ? (dropZone.join('').length !== (currentTask.answer || '').length) : !choice)}
+                  className={`soft rounded-2xl px-5 py-2 font-semibold ${(!isTeach && (currentTask.type === 'dragWord' ? (dropZone.join('').length !== (currentTask.answer || '').length) : !choice)) ? 'bg-slate-700/70 cursor-not-allowed' : 'gradient-btn2'}`}
+                >
+                  Дальше
+                </button>
+                <button onClick={() => { setActiveId(null); setAttemptTasks([]); setResult(null); }} className="soft rounded-2xl px-5 py-2 border border-slate-700/70 bg-slate-950/40">
+                  Выйти
+                </button>
+              </div>
+            </section>
+          </Shell>
+        )
+      }
+
+      // --- Views --------------------------------------------------------------
+      const Achievements = () => {
+        const badges = [
+          { id:'streak3', title:'Серия 3', ok: stats.streak >= 3, desc:'3 дня подряд' },
+          { id:'streak7', title:'Серия 7', ok: stats.streak >= 7, desc:'7 дней подряд' },
+          { id:'xp500', title:'XP 500', ok: stats.xp >= 500, desc:'награда за регулярность' },
+          { id:'lessons10', title:'10 уроков', ok: completed.length >= 10, desc:'первые шаги' },
+          { id:'deck50', title:'Колодa 50', ok: Object.keys(srs).length >= 50, desc:'словарный запас растёт' },
+          { id:'master', title:'Мастер', ok: masteredCount >= 20, desc:'20 слов без ошибок' },
+        ];
+        return (
+          <div className="grid md:grid-cols-2 gap-3">
+            {badges.map((b) => (
+              <div key={b.id} className={`glass rounded-3xl p-4 border ${b.ok ? 'border-emerald-400/30' : 'border-slate-700/70'} flex items-start justify-between gap-3`}
+              >
+                <div>
+                  <div className="font-semibold">{b.title}</div>
+                  <div className="text-sm text-slate-300">{b.desc}</div>
+                </div>
+                <div className={`text-sm px-3 py-1 rounded-2xl border ${b.ok ? 'border-emerald-400/40 bg-emerald-900/10' : 'border-slate-700/70 bg-slate-950/40'}`}
+                >
+                  {b.ok ? '✅' : '⏳'}
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      };
+
+      const LearnView = () => (
+        <Shell>
+          <section className="grid lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-2 space-y-3">
+              <div className="glass rounded-3xl p-5 md:p-6 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm text-slate-300">План на сегодня</div>
+                    <div className="text-2xl font-bold">{dueCards.length ? `Повторить ${Math.min(goal.dailyReviews, dueCards.length)} карточек` : 'Повторения нет'} • {goal.dailyMinutes} мин</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => startReview()} className="soft gradient-btn2 rounded-2xl px-4 py-2 font-semibold">Старт повторения</button>
+                    <button onClick={() => { setView('kana'); if (!kanaQuiz) startKanaQuiz(); }} className="soft rounded-2xl px-4 py-2 border border-slate-700/70 bg-slate-950/40">Кана-спринт</button>
+                  </div>
+                </div>
+                <div className="text-sm text-slate-300">
+                  Сегодня повторено: <b className="text-slate-100">{dailyProgress.reviewedToday}</b> • В колоде: <b className="text-slate-100">{Object.keys(srs).length}</b> • Освоено без ошибок: <b className="text-slate-100">{masteredCount}</b>
+                </div>
+              </div>
+
+              <div className="glass rounded-3xl p-5 md:p-6">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <h2 className="text-xl font-bold">Уроки (42 дня)</h2>
+                  <div className="text-sm text-slate-300">Открыто до: <b className="text-slate-100">{unlockedUpTo}</b></div>
+                </div>
+                <div className="space-y-2">
+                  {lessons.map((lesson) => {
+                    const locked = lesson.id > unlockedUpTo;
+                    return (
+                      <button
+                        key={lesson.id}
+                        disabled={locked}
+                        onClick={() => startLesson(lesson)}
+                        className={`soft w-full text-left rounded-3xl p-4 border ${locked ? 'opacity-40 cursor-not-allowed border-slate-800/60 bg-slate-950/20' : 'border-slate-700/70 bg-slate-950/40 hover:border-indigo-400/40'}`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-xs text-indigo-300">Юнит {lesson.unit} {lesson.isReview ? '• Повторение' : ''}</p>
+                            <h3 className="font-semibold">{lesson.title}</h3>
+                            <p className="text-sm text-slate-300">⏱ {lesson.durationMin} мин • {lesson.tasks.length} заданий</p>
+                          </div>
+                          <div className="text-right text-sm">
+                            {progress[lesson.id] ? '✅ Завершен' : locked ? '🔒 Закрыт' : '🟢 Доступен'}
+                          </div>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <aside className="space-y-3">
+              <div className="glass rounded-3xl p-5 md:p-6 space-y-2">
+                <h3 className="text-lg font-bold">Быстрый прогресс</h3>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="glass rounded-2xl p-3 border border-slate-700/60">
+                    <div className="text-slate-300">Карточек на сегодня</div>
+                    <div className="text-2xl font-bold">{dueCards.length}</div>
+                  </div>
+                  <div className="glass rounded-2xl p-3 border border-slate-700/60">
+                    <div className="text-slate-300">След. повтор</div>
+                    <div className="text-lg font-semibold">{(() => {
+                      if (dueCards.length) return 'сейчас';
+                      const nextDue = Math.min(...Object.values(srs).map((c)=>c.due||Infinity), Infinity);
+                      if (!isFinite(nextDue)) return '—';
+                      return fmtShort(new Date(nextDue).toISOString());
+                    })()}</div>
+                  </div>
+                </div>
+                <div className="text-sm text-slate-300">
+                  Рекомендация: держи колоду в районе 50–200 слов, иначе повторение станет тяжёлым.
+                </div>
+              </div>
+
+              <div className="glass rounded-3xl p-5 md:p-6 space-y-3">
+                <h3 className="text-lg font-bold">Достижения</h3>
+                <Achievements />
+              </div>
+
+              <div className="glass rounded-3xl p-5 md:p-6 text-sm text-slate-300 space-y-2">
+                <div className="font-semibold text-slate-100">Как это устроено</div>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Уроки дают базу: кана, слова, грамматика.</li>
+                  <li>Повторение использует простую систему интервалов (SM‑2).</li>
+                  <li>Сайт работает офлайн после первого открытия (PWA).</li>
+                </ul>
+              </div>
+            </aside>
+          </section>
+        </Shell>
+      );
+
+      const ReviewView = () => (
+        <Shell>
+          <section className="max-w-3xl mx-auto space-y-3">
+            <div className="glass rounded-3xl p-5 md:p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div>
+                <h2 className="text-2xl font-bold">Повторение</h2>
+                <p className="text-slate-300">На сегодня: <b className="text-slate-100">{dueCards.length}</b> карточек • Цель: <b className="text-slate-100">{goal.dailyReviews}</b></p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => startReview()} className="soft gradient-btn2 rounded-2xl px-4 py-2 font-semibold">Начать</button>
+                <button onClick={() => setReviewSession(null)} className="soft rounded-2xl px-4 py-2 border border-slate-700/70 bg-slate-950/40">Сбросить сессию</button>
+              </div>
+            </div>
+
+            {!reviewSession && (
+              <div className="glass rounded-3xl p-5 md:p-6 space-y-2">
+                <div className="text-slate-300">Сессия не запущена. Нажми «Начать» или используй «Быстрое повторение» вверху.</div>
+                <div className="text-sm text-slate-400">Подсказка: если карточек мало, добавь слова из «Словарь» → «В колоду».</div>
+              </div>
+            )}
+
+            {reviewSession && currentReviewCard && (
+              <div className="glass rounded-3xl p-5 md:p-6 space-y-4">
+                <div className="flex items-center justify-between gap-2 text-sm text-slate-300">
+                  <div>Карточка {reviewSession.idx+1}/{reviewSession.total}</div>
+                  <div className="glass rounded-2xl px-3 py-1 border border-slate-700/60">Верно: <b className="text-slate-100">{reviewSession.correct}</b></div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-3">
+                  <div className="glass rounded-3xl p-4 border border-slate-700/60">
+                    <div className="text-xs text-slate-400">Японский</div>
+                    <div className="text-4xl font-black tracking-tight">{currentReviewCard.jp}</div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button onClick={() => speak(currentReviewCard.jp)} className="soft gradient-btn rounded-2xl px-4 py-2 font-semibold">🔊</button>
+                      <button onClick={() => removeFromDeck(currentReviewCard.jp)} className="soft rounded-2xl px-4 py-2 border border-slate-700/70 bg-slate-950/40">Убрать</button>
+                      <div className="text-xs text-slate-400 self-center">
+                        интервал: <b className="text-slate-200">{currentReviewCard.interval}д</b> • EF: <b className="text-slate-200">{(currentReviewCard.ef||0).toFixed(2)}</b>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="text-sm text-slate-300">Выбери перевод</div>
+                    <div className="grid gap-2">
+                      {reviewOptions.map((o) => (
+                        <button key={o} onClick={() => setReviewChoice(o)} className={`soft text-left px-4 py-3 rounded-2xl border ${reviewChoice===o ? 'border-emerald-400/70 bg-emerald-900/20' : 'border-slate-700/70 bg-slate-950/40'}`}>{o}</button>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <button
+                        onClick={() => gradeReview(reviewChoice === currentReviewCard.tr)}
+                        disabled={!reviewChoice}
+                        className={`soft rounded-2xl px-4 py-2 font-semibold ${reviewChoice ? 'gradient-btn2' : 'bg-slate-700/70 cursor-not-allowed'}`}
+                      >
+                        Ответить
+                      </button>
+                      <button onClick={() => gradeReview(false)} className="soft rounded-2xl px-4 py-2 border border-slate-700/70 bg-slate-950/40">Не знаю</button>
+                    </div>
+                    <div className="text-xs text-slate-400">При правильном ответе интервал растёт, при ошибке — сбрасывается.</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="glass rounded-3xl p-5 md:p-6">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <div className="font-semibold">В очереди</div>
+                  <div className="text-sm text-slate-300">Сейчас к повторению: {dueCards.length}. В колоде всего: {Object.keys(srs).length}.</div>
+                </div>
+                <button onClick={() => startReview(60)} className="soft rounded-2xl px-4 py-2 border border-slate-700/70 bg-slate-950/40">Усиленный режим</button>
+              </div>
+            </div>
+          </section>
+        </Shell>
+      );
+
+      const KanaView = () => {
+        const script = kanaMode.script;
+        const toScript = (h) => script === 'hira' ? h : (kataMap[h] || h);
+        return (
+          <Shell>
+            <section className="grid lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-2 space-y-3">
+                <div className="glass rounded-3xl p-5 md:p-6">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-2xl font-bold">Кана</h2>
+                      <p className="text-slate-300 text-sm">Таблица + мини‑тренажёр</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button onClick={() => setKanaMode((m) => ({ ...m, script: m.script === 'hira' ? 'kata' : 'hira' }))} className="soft rounded-2xl px-4 py-2 border border-slate-700/70 bg-slate-950/40">
+                        {script === 'hira' ? 'Хирагана' : 'Катакана'}
+                      </button>
+                      <button onClick={() => setKanaMode((m) => ({ ...m, quiz: m.quiz === 'kana2roma' ? 'roma2kana' : 'kana2roma' }))} className="soft rounded-2xl px-4 py-2 border border-slate-700/70 bg-slate-950/40">
+                        Режим: {kanaMode.quiz === 'kana2roma' ? 'кана → ромадзи' : 'ромадзи → кана'}
+                      </button>
+                      <button onClick={() => startKanaQuiz()} className="soft gradient-btn2 rounded-2xl px-4 py-2 font-semibold">Новый вопрос</button>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="w-full text-sm border-separate" style={{ borderSpacing:'0.5rem' }}>
+                      <thead>
+                        <tr className="text-slate-400">
+                          <th className="text-left px-2"> </th>
+                          {['a','i','u','e','o'].map((h) => <th key={h} className="text-left px-2">{h}</th>)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {gojuon.map((r, idx) => (
+                          <tr key={idx}>
+                            <td className="px-2 text-slate-400">{r.row}</td>
+                            {r.cells.map((c, i) => {
+                              const [h, roma] = c;
+                              if (!h) return <td key={i} />;
+                              const sym = toScript(h);
+                              return (
+                                <td key={i}>
+                                  <button onClick={() => speak(sym)} className="soft w-full text-left glass rounded-2xl p-3 border border-slate-700/60 hover:border-indigo-400/40">
+                                    <div className="text-2xl font-bold">{sym}</div>
+                                    <div className="text-xs text-slate-400">{roma}</div>
+                                  </button>
+                                </td>
+                              )
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="glass rounded-3xl p-5 md:p-6 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xl font-bold">Мини‑квиз</h3>
+                    <div className="text-sm text-slate-300">за правильный ответ: +3 XP</div>
+                  </div>
+                  {kanaQuiz && (
+                    <>
+                      <div className="glass rounded-3xl p-4 border border-slate-700/60">
+                        <div className="text-xs text-slate-400">Вопрос</div>
+                        <div className="text-4xl font-black">{kanaQuiz.prompt}</div>
+                        <div className="mt-2">
+                          <button onClick={() => speak(kanaQuiz.kind === 'roma2kana' ? kanaQuiz.answer : kanaQuiz.prompt)} className="soft gradient-btn rounded-2xl px-4 py-2 font-semibold">🔊</button>
+                        </div>
+                      </div>
+                      <div className="grid gap-2">
+                        {kanaQuiz.options.map((o) => (
+                          <button key={o} onClick={() => setKanaQuiz((q) => ({ ...q, picked:o }))} className={`soft text-left px-4 py-3 rounded-2xl border ${kanaQuiz.picked===o ? 'border-emerald-400/70 bg-emerald-900/20' : 'border-slate-700/70 bg-slate-950/40'}`}>{o}</button>
+                        ))}
+                      </div>
+                      <button onClick={submitKanaQuiz} disabled={!kanaQuiz.picked} className={`soft rounded-2xl px-5 py-2 font-semibold ${kanaQuiz.picked ? 'gradient-btn2' : 'bg-slate-700/70 cursor-not-allowed'}`}>Проверить</button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <aside className="space-y-3">
+                <div className="glass rounded-3xl p-5 md:p-6 space-y-2">
+                  <h3 className="text-lg font-bold">Подсказки</h3>
+                  <ul className="text-sm text-slate-300 list-disc pl-5 space-y-1">
+                    <li>Нажимай на символы — они озвучиваются.</li>
+                    <li>Если нажать 🔊 повторно быстро — будет медленнее.</li>
+                    <li>Катакана чаще встречается в заимствованиях и названиях.</li>
+                  </ul>
+                </div>
+                <div className="glass rounded-3xl p-5 md:p-6 space-y-2">
+                  <h3 className="text-lg font-bold">Цель на день</h3>
+                  <div className="text-sm text-slate-300">Повторений: <b className="text-slate-100">{goal.dailyReviews}</b></div>
+                  <div className="text-sm text-slate-300">Минут: <b className="text-slate-100">{goal.dailyMinutes}</b></div>
+                  <button onClick={() => setView('settings')} className="soft rounded-2xl px-4 py-2 border border-slate-700/70 bg-slate-950/40">Настроить</button>
+                </div>
+              </aside>
+            </section>
+          </Shell>
+        )
+      };
+
+      const VocabView = () => {
+        const list = useMemo(() => {
+          const q = vocabQuery.trim().toLowerCase();
+          if (!q) return vocab.slice(0, 200);
+          return vocab.filter((v) => (v.jp || '').includes(q) || (v.tr || '').toLowerCase().includes(q)).slice(0, 200);
+        }, [vocab, vocabQuery]);
+
+        const addCustom = () => {
+          const jp = customJp.trim();
+          const tr = customTr.trim();
+          if (!jp || !tr) return;
+          const w = { jp, tr, _custom:true };
+          setVocab((v) => uniqBy([w, ...v], (x) => x.jp));
+          addToDeck(w);
+          setCustomJp('');
+          setCustomTr('');
+        };
+
+        return (
+          <Shell>
+            <section className="grid lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-2 space-y-3">
+                <div className="glass rounded-3xl p-5 md:p-6">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-2xl font-bold">Словарь</h2>
+                      <p className="text-slate-300 text-sm">Поиск + управление колодой</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={exportBackup} className="soft rounded-2xl px-4 py-2 border border-slate-700/70 bg-slate-950/40">Экспорт</button>
+                      <label className="soft rounded-2xl px-4 py-2 border border-slate-700/70 bg-slate-950/40 cursor-pointer">
+                        Импорт
+                        <input type="file" accept="application/json" className="hidden" onChange={(e) => e.target.files?.[0] && importBackup(e.target.files[0])} />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex gap-2">
+                    <input value={vocabQuery} onChange={(e) => setVocabQuery(e.target.value)} placeholder="Поиск: 日本語 или перевод" className="w-full rounded-2xl px-4 py-3 bg-slate-950/40 border border-slate-700/70 outline-none" />
+                    <button onClick={() => setVocabQuery('')} className="soft rounded-2xl px-4 py-3 border border-slate-700/70 bg-slate-950/40">Очистить</button>
+                  </div>
+                </div>
+
+                <div className="glass rounded-3xl p-5 md:p-6">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div className="text-sm text-slate-300">Показано: <b className="text-slate-100">{list.length}</b> из {vocab.length}</div>
+                    <div className="text-sm text-slate-300">В колоде: <b className="text-slate-100">{Object.keys(srs).length}</b></div>
+                  </div>
+
+                  <div className="space-y-2">
+                    {list.map((w) => {
+                      const inDeck = !!srs[w.jp];
+                      const c = srs[w.jp];
+                      return (
+                        <div key={w.jp} className="glass rounded-3xl p-4 border border-slate-700/70 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <div className="text-2xl font-bold">{w.jp}</div>
+                              <button onClick={() => speak(w.jp)} className="soft gradient-btn rounded-2xl px-3 py-1 text-sm font-semibold">🔊</button>
+                              {w._custom ? <span className="text-xs px-2 py-0.5 rounded-full bg-slate-900/60 border border-slate-700/60">custom</span> : null}
+                            </div>
+                            <div className="text-slate-300 text-sm break-words">{w.tr}</div>
+                            {inDeck && (
+                              <div className="text-xs text-slate-400 mt-1">след. повтор: <b className="text-slate-200">{fmtShort(new Date(c.due).toISOString())}</b> • интервал: <b className="text-slate-200">{c.interval}д</b> • ошибок: <b className="text-slate-200">{c.lapses}</b></div>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {!inDeck ? (
+                              <button onClick={() => addToDeck(w)} className="soft gradient-btn2 rounded-2xl px-4 py-2 font-semibold">В колоду</button>
+                            ) : (
+                              <button onClick={() => removeFromDeck(w.jp)} className="soft rounded-2xl px-4 py-2 border border-slate-700/70 bg-slate-950/40">Убрать</button>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <aside className="space-y-3">
+                <div className="glass rounded-3xl p-5 md:p-6 space-y-3">
+                  <h3 className="text-lg font-bold">Добавить своё слово</h3>
+                  <input value={customJp} onChange={(e) => setCustomJp(e.target.value)} placeholder="например: ねこ" className="w-full rounded-2xl px-4 py-3 bg-slate-950/40 border border-slate-700/70 outline-none" />
+                  <input value={customTr} onChange={(e) => setCustomTr(e.target.value)} placeholder="например: кошка" className="w-full rounded-2xl px-4 py-3 bg-slate-950/40 border border-slate-700/70 outline-none" />
+                  <button onClick={addCustom} className="soft gradient-btn2 rounded-2xl px-4 py-2 font-semibold">Добавить</button>
+                  <div className="text-xs text-slate-400">Слово сразу добавляется в колоду для повторения.</div>
+                </div>
+
+                <div className="glass rounded-3xl p-5 md:p-6 space-y-2">
+                  <h3 className="text-lg font-bold">Трюки</h3>
+                  <ul className="text-sm text-slate-300 list-disc pl-5 space-y-1">
+                    <li>Добавляй слова из уроков — они попадут в повторение автоматически.</li>
+                    <li>Экспортируй бэкап, чтобы переносить прогресс между устройствами.</li>
+                    <li>Если в списке много слов — используй поиск, показ ограничен 200.</li>
+                  </ul>
+                </div>
+              </aside>
+            </section>
+          </Shell>
+        )
+      };
+
+      const GrammarView = () => {
+        const mini = [
+          { q:'Какая частица отмечает тему?', a:'は' },
+          { q:'Какая частица делает вопрос в конце?', a:'か' },
+          { q:'Какой показатель прямого дополнения?', a:'を' },
+          { q:'Какая частица часто про место действия?', a:'で' },
+        ];
+        const [gq, setGq] = useState(() => pick(mini, Math.floor(Math.random()*99)));
+        const [gPick, setGPick] = useState('');
+        const opts = useMemo(() => mixed(gq.a, shuffle(['は','か','を','に','で','が']).filter((x)=>x!==gq.a).slice(0,3)), [gq]);
+
+        const next = () => {
+          setGq(pick(mini, Math.floor(Math.random()*9999)));
+          setGPick('');
+        };
+
+        const submit = () => {
+          const ok = gPick === gq.a;
+          setStats((s) => ({ ...s, xp: s.xp + (ok ? 4 : 0) }));
+          toastMsg(ok ? '+4 XP' : 'Не то');
+          next();
+        };
+
+        return (
+          <Shell>
+            <section className="grid lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-2 space-y-3">
+                <div className="glass rounded-3xl p-5 md:p-6">
+                  <h2 className="text-2xl font-bold">Грамматика: шпаргалка</h2>
+                  <p className="text-slate-300 text-sm">Минимальный набор частиц + примеры</p>
+
+                  <div className="mt-4 grid md:grid-cols-2 gap-3">
+                    {grammarBank.map((g, idx) => (
+                      <div key={idx} className="glass rounded-3xl p-4 border border-slate-700/70 space-y-1">
+                        <div className="font-semibold">{g.rule}</div>
+                        <div className="text-sm text-slate-300">Пример: <span className="text-slate-100">{g.sentence}</span></div>
+                        <div className="text-sm text-slate-400">{g.explain}</div>
+                        <button onClick={() => speak(g.sentence)} className="soft gradient-btn rounded-2xl px-4 py-2 text-sm font-semibold mt-2">🔊 Озвучить</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="glass rounded-3xl p-5 md:p-6 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xl font-bold">Мини‑квиз</h3>
+                    <div className="text-sm text-slate-300">за правильный ответ: +4 XP</div>
+                  </div>
+                  <div className="glass rounded-3xl p-4 border border-slate-700/60">
+                    <div className="text-xs text-slate-400">Вопрос</div>
+                    <div className="text-xl font-semibold">{gq.q}</div>
+                  </div>
+                  <div className="grid gap-2">
+                    {opts.map((o) => (
+                      <button key={o} onClick={() => setGPick(o)} className={`soft text-left px-4 py-3 rounded-2xl border ${gPick===o ? 'border-emerald-400/70 bg-emerald-900/20' : 'border-slate-700/70 bg-slate-950/40'}`}>{o}</button>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button onClick={submit} disabled={!gPick} className={`soft rounded-2xl px-5 py-2 font-semibold ${gPick ? 'gradient-btn2' : 'bg-slate-700/70 cursor-not-allowed'}`}>Ответить</button>
+                    <button onClick={next} className="soft rounded-2xl px-5 py-2 border border-slate-700/70 bg-slate-950/40">Пропустить</button>
+                  </div>
+                </div>
+              </div>
+
+              <aside className="space-y-3">
+                <div className="glass rounded-3xl p-5 md:p-6 space-y-2">
+                  <h3 className="text-lg font-bold">Мини‑паттерны</h3>
+                  <div className="text-sm text-slate-300 space-y-2">
+                    <div className="glass rounded-2xl p-3 border border-slate-700/60">
+                      <div className="text-xs text-slate-400">X は Y です</div>
+                      <div className="font-semibold">Тема + утверждение</div>
+                      <div className="text-slate-400 text-sm">わたしは がくせいです。</div>
+                    </div>
+                    <div className="glass rounded-2xl p-3 border border-slate-700/60">
+                      <div className="text-xs text-slate-400">X を V ます</div>
+                      <div className="font-semibold">Объект + действие</div>
+                      <div className="text-slate-400 text-sm">ごはんを たべます。</div>
+                    </div>
+                    <div className="glass rounded-2xl p-3 border border-slate-700/60">
+                      <div className="text-xs text-slate-400">X に いきます</div>
+                      <div className="font-semibold">Направление</div>
+                      <div className="text-slate-400 text-sm">えきに いきます。</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="glass rounded-3xl p-5 md:p-6 space-y-2">
+                  <h3 className="text-lg font-bold">Практика</h3>
+                  <div className="text-sm text-slate-300">Старайся озвучивать примеры и повторять вслух.</div>
+                  <button onClick={() => setView('learn')} className="soft rounded-2xl px-4 py-2 border border-slate-700/70 bg-slate-950/40">К урокам</button>
+                </div>
+              </aside>
+            </section>
+          </Shell>
+        )
+      };
+
+      const SettingsView = () => (
+        <Shell>
+          <section className="max-w-3xl mx-auto space-y-3">
+            <div className="glass rounded-3xl p-5 md:p-6">
+              <h2 className="text-2xl font-bold">Настройки</h2>
+              <p className="text-slate-300 text-sm">Цели + бэкап + сброс</p>
+
+              <div className="mt-4 grid gap-3">
+                <div className="glass rounded-3xl p-4 border border-slate-700/70">
+                  <div className="font-semibold">Цель на день</div>
+                  <div className="mt-2 grid md:grid-cols-2 gap-3">
+                    <div>
+                      <div className="text-sm text-slate-300">Повторений: <b className="text-slate-100">{goal.dailyReviews}</b></div>
+                      <input type="range" min="10" max="60" step="5" value={goal.dailyReviews} onChange={(e) => setGoal((g) => ({ ...g, dailyReviews: +e.target.value }))} className="w-full" />
+                    </div>
+                    <div>
+                      <div className="text-sm text-slate-300">Минут: <b className="text-slate-100">{goal.dailyMinutes}</b></div>
+                      <input type="range" min="5" max="30" step="5" value={goal.dailyMinutes} onChange={(e) => setGoal((g) => ({ ...g, dailyMinutes: +e.target.value }))} className="w-full" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="glass rounded-3xl p-4 border border-slate-700/70 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div>
+                    <div className="font-semibold">Бэкап</div>
+                    <div className="text-sm text-slate-300">Экспортируй и импортируй прогресс/колоду.</div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button onClick={exportBackup} className="soft rounded-2xl px-4 py-2 border border-slate-700/70 bg-slate-950/40">Экспорт</button>
+                    <label className="soft rounded-2xl px-4 py-2 border border-slate-700/70 bg-slate-950/40 cursor-pointer">
+                      Импорт
+                      <input type="file" accept="application/json" className="hidden" onChange={(e) => e.target.files?.[0] && importBackup(e.target.files[0])} />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="glass rounded-3xl p-4 border border-slate-700/70 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div>
+                    <div className="font-semibold text-amber-200">Сброс</div>
+                    <div className="text-sm text-slate-300">Удалит прогресс уроков, XP, серию и колоду.</div>
+                  </div>
+                  <button onClick={resetAll} className="soft gradient-warn rounded-2xl px-4 py-2 font-semibold">Сбросить всё</button>
+                </div>
+              </div>
+            </div>
+
+            <div className="glass rounded-3xl p-5 md:p-6 text-sm text-slate-300 space-y-2">
+              <div className="font-semibold text-slate-100">О приватности</div>
+              <div>Все данные хранятся локально в браузере (localStorage). На сервер ничего не отправляется.</div>
+            </div>
+          </section>
+        </Shell>
+      );
+
+      // --- Route --------------------------------------------------------------
+      if (view === 'review') return <ReviewView />;
+      if (view === 'kana') return <KanaView />;
+      if (view === 'vocab') return <VocabView />;
+      if (view === 'grammar') return <GrammarView />;
+      if (view === 'settings') return <SettingsView />;
+      return <LearnView />;
     }
 
     window.addEventListener('error', () => {
