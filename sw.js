@@ -1,62 +1,104 @@
-const CACHE_NAME = 'nihongo-quest-v2';
-const APP_SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.svg', './icons/icon-512.svg', './wikiwords.lst'];
+/* Nihongo Quest Service Worker (GitHub Pages friendly) */
+const VERSION = 'v3';
+const APP_CACHE = `nq-app-${VERSION}`;
+const RUNTIME_CACHE = `nq-runtime-${VERSION}`;
+
+const APP_SHELL = [
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './wikiwords.lst',
+  './icons/icon-192.svg',
+  './icons/icon-512.svg',
+];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
+  event.waitUntil(
+    caches.open(APP_CACHE).then((cache) => cache.addAll(APP_SHELL))
+  );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
-  );
-  self.clients.claim();
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.map((k) => {
+      if (k !== APP_CACHE && k !== RUNTIME_CACHE) return caches.delete(k);
+    }));
+    await self.clients.claim();
+  })());
 });
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
+function isCdn(url) {
+  return [
+    'unpkg.com',
+    'cdn.tailwindcss.com',
+    'cdnjs.cloudflare.com',
+  ].includes(url.hostname);
+}
+
+async function cacheFirst(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  const fresh = await fetch(request);
+  if (fresh && fresh.ok) cache.put(request, fresh.clone());
+  return fresh;
+}
+
+async function staleWhileRevalidate(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(request);
+  const fetchPromise = fetch(request).then((fresh) => {
+    if (fresh && fresh.ok) cache.put(request, fresh.clone());
+    return fresh;
+  }).catch(() => null);
+  return cached || (await fetchPromise) || cached;
+}
+
+async function networkFirst(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  try {
+    const fresh = await fetch(request);
+    if (fresh && fresh.ok) cache.put(request, fresh.clone());
+    return fresh;
+  } catch (e) {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    throw e;
+  }
+}
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
-  
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const fetchPromise = fetch(event.request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-          const cloned = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
-        }
-        return networkResponse;
-      }).catch(() => null);
+  const req = event.request;
+  if (req.method !== 'GET') return;
 
-      return cached || fetchPromise || caches.match('./index.html');
-    })
-  );
-});const CACHE_NAME = 'nihongo-quest-v1';
-const APP_SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.svg', './icons/icon-512.svg', './wikiwords.lst'];
+  const url = new URL(req.url);
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
-  self.skipWaiting();
-});
+  // Navigation: serve app shell offline
+  if (req.mode === 'navigate') {
+    event.respondWith(
+      caches.match('./index.html').then((cached) => cached || fetch(req))
+    );
+    return;
+  }
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
-  );
-  self.clients.claim();
-});
+  // Cache CDN assets to make offline usable even with CDN scripts/styles
+  if (isCdn(url)) {
+    event.respondWith(staleWhileRevalidate(req, RUNTIME_CACHE));
+    return;
+  }
 
-self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request)
-        .then((response) => {
-          if (!response || response.status !== 200 || response.type !== 'basic') return response;
-          const cloned = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
-          return response;
-        })
-        .catch(() => caches.match('./index.html'));
-    })
-  );
+  // Same-origin assets
+  if (url.origin === self.location.origin) {
+    if (url.pathname.endsWith('/wikiwords.lst') || url.pathname.endsWith('wikiwords.lst')) {
+      event.respondWith(networkFirst(req, APP_CACHE));
+      return;
+    }
+    event.respondWith(cacheFirst(req, APP_CACHE));
+  }
 });
